@@ -291,4 +291,71 @@ class SocialApiController extends ApiController {
 		}
 		return new JSONResponse([], Http::STATUS_OK);
 	}
+
+
+	/**
+	 * @NoAdminRequired
+	 * @NoCSRFRequired
+	 * // FIXME: for testing purpose only
+	 *
+	 * Retrieves social profile data for all contacts of an addressbook
+	 * // TODO: how to exclude certain contacts?
+	 *
+	 * @param {String} addressbookId the addressbook identifier
+	 * @param {String} type the kind of information to retrieve -- provision
+	 *
+	 * @returns {JSONResponse} a JSONResponse with the list of changed and failed contacts
+	 */
+	public function autoUpdate(string $addressbookId, string $type) : JSONResponse {
+
+			$delay = 1;
+			$response = [
+				'updated' => array(),
+				'checked' => array(),
+				'failed' => array(),
+			];
+
+			// get corresponding addressbook
+			$addressBooks = $this->manager->getUserAddressBooks();
+			$addressBook = null;
+			foreach($addressBooks as $ab) {
+				if ($ab->getUri() === $addressbookId) {
+					$addressBook = $ab;
+				}
+			}
+			if (is_null($addressBook)) {
+				return new JSONResponse([], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			// get contacts in that addressbook // FIXME: is there a better way?
+			$contacts = $addressBook->search('', ['UID'], ['types' => true]);
+			if (is_null($contacts)) {
+				return new JSONResponse([], Http::STATUS_INTERNAL_SERVER_ERROR); 
+			}
+
+			// update one contact at a time, with delay to prevent rate limiting issues
+			foreach ($contacts as $contact) {
+				sleep($delay); // FIXME: is this causing trouble (timeouts)?
+
+				try {
+					$r = $this->fetch($addressbookId, $contact['UID'], $type);
+
+					if ($r->getStatus() === Http::STATUS_OK) {
+						array_push($response['updated'], $contact['FN']);
+					}
+					elseif ($r->getStatus() === Http::STATUS_NOT_MODIFIED) {
+						array_push($response['checked'], $contact['FN']);
+					}
+					else {
+						array_push($response['failed'], $contact['FN']);
+					}
+				}
+				catch (Exception $e) {
+					array_push($response['failed'], $contact['FN']);
+				}
+
+			}
+
+			return new JSONResponse([$response], Http::STATUS_OK);
+	}
 }
