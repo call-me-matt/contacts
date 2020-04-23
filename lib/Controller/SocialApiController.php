@@ -135,7 +135,7 @@ class SocialApiController extends ApiController {
 	 * generate download url for a social entry (based on type of data requested)
 	 *
 	 * @param {array} socialentries the network and id from the social profiles
-	 * @param {array} network the choice which network to use or 'first' to use any
+	 * @param {String} network the choice which network to use or 'first' to use any
 	 * @returns {String} the url to the requested information or null in case of errors
 	 */
 	protected function getSocialConnector(array $socialentries, string $network) : ?string {
@@ -221,7 +221,7 @@ class SocialApiController extends ApiController {
 			// get social data
 			$socialprofiles = $contact['X-SOCIALPROFILE'];
 			if (is_null($socialprofiles)) {
-				return new JSONResponse([], Http::STATUS_INTERNAL_SERVER_ERROR);
+				return new JSONResponse([], Http::STATUS_PRECONDITION_FAILED);
 			}
 
 			// retrieve data
@@ -309,10 +309,11 @@ class SocialApiController extends ApiController {
 	 *
 	 * @param {String} addressbookId the addressbook identifier
 	 * @param {String} type the kind of information to retrieve -- provision
+	 * @param {String} network the social network to use or 'first' to use any
 	 *
 	 * @returns {JSONResponse} a JSONResponse with the list of changed and failed contacts
 	 */
-	public function autoUpdate(string $addressbookId, string $type) : JSONResponse {
+	public function autoUpdate(string $addressbookId, string $type, string $network) : JSONResponse {
 
 			$delay = 1;
 			$response = [
@@ -341,27 +342,26 @@ class SocialApiController extends ApiController {
 
 			// update one contact at a time, with delay to prevent rate limiting issues
 			foreach ($contacts as $contact) {
-				sleep($delay); // FIXME: is this causing trouble (timeouts)?
+				usleep($delay * 1000000); // FIXME: is this causing trouble (timeouts)?
 
 				try {
-					$r = $this->fetch($addressbookId, $contact['UID'], $type);
+					$r = $this->fetch($addressbookId, $contact['UID'], $type, $network);
 
 					if ($r->getStatus() === Http::STATUS_OK) {
 						array_push($response['updated'], $contact['FN']);
-					}
-					elseif ($r->getStatus() === Http::STATUS_NOT_MODIFIED) {
+					} elseif ($r->getStatus() === Http::STATUS_NOT_MODIFIED) {
 						array_push($response['checked'], $contact['FN']);
-					}
-					else {
-						array_push($response['failed'], $contact['FN']);
+					} else {
+						if (!isset($response['failed'][$r->getStatus()])) {
+							$response['failed'][$r->getStatus()] = array();
+						}
+						array_push($response['failed'][$r->getStatus()], $contact['FN']);
 					}
 				}
 				catch (Exception $e) {
 					array_push($response['failed'], $contact['FN']);
 				}
-
 			}
-
 			return new JSONResponse([$response], Http::STATUS_OK);
 	}
 }
