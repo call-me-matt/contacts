@@ -315,7 +315,7 @@ class SocialApiController extends ApiController {
 	 */
 	public function autoUpdate(string $addressbookId, string $type, string $network) : JSONResponse {
 
-			$delay = 1;
+			$delay = 2;
 			$response = [
 				'updated' => array(),
 				'checked' => array(),
@@ -342,7 +342,8 @@ class SocialApiController extends ApiController {
 
 			// update one contact at a time, with delay to prevent rate limiting issues
 			foreach ($contacts as $contact) {
-				usleep($delay * 1000000); // FIXME: is this causing trouble (timeouts)?
+				usleep($delay * 1000000);
+				// FIXME: do we need to send an Http::STATUS_PROCESSING ?
 
 				try {
 					$r = $this->fetch($addressbookId, $contact['UID'], $type, $network);

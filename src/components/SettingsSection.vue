@@ -27,6 +27,10 @@
 		</ul>
 		<SettingsNewAddressbook :addressbooks="addressbooks" />
 		<SettingsSortContacts class="settings-section" />
+		<SettingsGetSocialAvatars :addressbooks="addressbooks"
+			class="settings-section"
+			@clicked="onClickSocialUpdate"
+			@fileLoaded="onLoad" />
 		<SettingsImportContacts :addressbooks="addressbooks"
 			class="settings-section"
 			@clicked="onClickImport"
@@ -38,6 +42,7 @@
 import SettingsAddressbook from './Settings/SettingsAddressbook'
 import SettingsNewAddressbook from './Settings/SettingsNewAddressbook'
 import SettingsImportContacts from './Settings/SettingsImportContacts'
+import SettingsGetSocialAvatars from './Settings/SettingsGetSocialAvatars'
 import SettingsSortContacts from './Settings/SettingsSortContacts'
 
 export default {
@@ -46,6 +51,7 @@ export default {
 		SettingsAddressbook,
 		SettingsNewAddressbook,
 		SettingsImportContacts,
+		SettingsGetSocialAvatars,
 		SettingsSortContacts,
 	},
 	computed: {
@@ -56,6 +62,9 @@ export default {
 	},
 	methods: {
 		onClickImport(event) {
+			this.$emit('clicked', event)
+		},
+		onClickSocialUpdate(event) {
 			this.$emit('clicked', event)
 		},
 		onLoad(event) {
