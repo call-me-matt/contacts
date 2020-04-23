@@ -109,12 +109,12 @@ class SocialApiController extends ApiController {
 	 * @param {String} type the kind of information interested in -- provision
 	 * @returns {array} an array of supported social networks
 	 */
-	public function getSupportedNetworks(string $type) : ?array {
+	public function getSupportedNetworks(string $type) : array {
 
 		$supported = array();
 		$supported['avatar'] = array();
 
-		foreach(self::SOCIAL_CONNECTORS as $network => $social) {
+		foreach(array_keys(self::SOCIAL_CONNECTORS) as $network) {
 			array_push($supported['avatar'], $network);
 		}
 
@@ -134,19 +134,29 @@ class SocialApiController extends ApiController {
 	 *
 	 * generate download url for a social entry (based on type of data requested)
 	 *
-	 * @param {array} socialentry the network and id from the social profile
+	 * @param {array} socialentries the network and id from the social profiles
+	 * @param {array} network the choice which network to use or 'first' to use any
 	 * @returns {String} the url to the requested information or null in case of errors
 	 */
-	protected function getSocialConnector(array $socialentry) : ?string {
+	protected function getSocialConnector(array $socialentries, string $network) : ?string {
 
 		$connector = null;
+		$selection = array();
 
-		// check supported networks in order
-		foreach(self::SOCIAL_CONNECTORS as $network => $social) {
+		// get all supported networks
+		if ($network === 'first') {
+			$selection = self::SOCIAL_CONNECTORS;
+		} else {
+			$selection = array($network => self::SOCIAL_CONNECTORS[$network]);
+		}
+
+		// check selected networks in order
+		foreach($selection as $socialnet => $social) {
 
 			// search for this network in user's profile
-			foreach ($socialentry as $networkentry => $profileId) {
-				if ($network === strtolower($networkentry)) {
+			foreach ($socialentries as $socialnetentry => $profileId) {
+
+				if ($socialnet === strtolower($socialnetentry)) {
 					// cleanups
 					if (in_array('basename', $social['cleanups'])) {
 						$profileId = basename($profileId);
@@ -173,7 +183,6 @@ class SocialApiController extends ApiController {
 		return ($connector);
 	}
 
-
 	/**
 	 * @NoAdminRequired
 	 *
@@ -182,10 +191,11 @@ class SocialApiController extends ApiController {
 	 * @param {String} addressbookId the addressbook identifier
 	 * @param {String} contactId the contact identifier
 	 * @param {String} type the kind of information to retrieve -- provision
+	 * @param {String} network the social network to use or 'first' to use any
 	 *
 	 * @returns {JSONResponse} an empty JSONResponse with respective http status code
 	 */
-	public function fetch(string $addressbookId, string $contactId, string $type) : JSONResponse {
+	public function fetch(string $addressbookId, string $contactId, string $type, string $network) : JSONResponse {
 
 		$url = null;
 
@@ -209,15 +219,14 @@ class SocialApiController extends ApiController {
 			}
 
 			// get social data
-			$socialprofile = $contact['X-SOCIALPROFILE'];
-
-			if (is_null($socialprofile)) {
+			$socialprofiles = $contact['X-SOCIALPROFILE'];
+			if (is_null($socialprofiles)) {
 				return new JSONResponse([], Http::STATUS_INTERNAL_SERVER_ERROR);
 			}
 
 			// retrieve data
 			try {
-				$url = $this->getSocialConnector($socialprofile);
+				$url = $this->getSocialConnector($socialprofiles, $network);
 			}
 			catch (Exception $e) {
 				return new JSONResponse([], Http::STATUS_BAD_REQUEST);
@@ -249,7 +258,7 @@ class SocialApiController extends ApiController {
 				}
 			}
 
-			if ((!$socialdata) || ($image_type === null)) {
+			if (!$socialdata || $image_type === null) {
 				return new JSONResponse([], Http::STATUS_NOT_FOUND);
 			}
 
@@ -261,17 +270,15 @@ class SocialApiController extends ApiController {
 					}
 					
 					$changes = array();
-					$changes['URI']=$contact['URI'];
+					$changes['URI'] = $contact['URI'];
 
 					$version = (float) $contact['VERSION'];
 					if ($version >= 4.0) {
 						$changes['PHOTO'] = "data:" . $image_type . ";base64," . base64_encode($socialdata);
-					}
-					elseif ($version >= 3.0) {
+					} elseif ($version >= 3.0) {
 						$image_type = str_replace('image/', '', $image_type);
 						$changes['PHOTO'] = "ENCODING=b;TYPE=" . strtoupper($image_type) . ":" . base64_encode($socialdata);
-					}
-					else {
+					} else {
 						return new JSONResponse([], Http::STATUS_CONFLICT);
 					}
 
@@ -283,8 +290,7 @@ class SocialApiController extends ApiController {
 					break;
 				default:
 					return new JSONResponse([], Http::STATUS_NOT_IMPLEMENTED);
-			}
-			
+			}	
 		} 
 		catch (Exception $e) {
 			return new JSONResponse([], Http::STATUS_INTERNAL_SERVER_ERROR);
