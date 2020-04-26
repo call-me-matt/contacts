@@ -75,17 +75,16 @@
 			</Modal>
 
 			<!-- out of the avatar__options because of the overflow hidden -->
-			<Actions :open="opened" class="contact-avatar-options__popovermenu">
-				<ActionButton v-if="!isReadOnly" icon="icon-upload" @click="selectFileInput">
+			<Actions v-if="!isReadOnly" :open="opened" class="contact-avatar-options__popovermenu">
+				<ActionButton icon="icon-upload" @click="selectFileInput">
 					{{ t('contacts', 'Upload a new picture') }}
 				</ActionButton>
-				<ActionButton v-if="!isReadOnly" icon="icon-picture" @click="selectFilePicker">
+				<ActionButton icon="icon-picture" @click="selectFilePicker">
 					{{ t('contacts', 'Choose from files') }}
 				</ActionButton>
-				<!-- FIXME: how can I add the v-if="!isReadOnly"? div is not allowed... -->
 				<ActionButton
 					v-for="network in supportedSocial"
-					v-bind:key="network"
+					:key="network"
 					icon="icon-sync"
 					@click="getSocialAvatar(network)">
 					{{ t('contacts', 'Get from ' + network) }}
@@ -147,18 +146,12 @@ export default {
 			return false
 		},
 		supportedSocial() {
-			// FIXME: this seems too complex
-			const supported = []
-			const contact = this.contact
-			supportedNetworks['avatar'].forEach(function(supportedNetwork) {
-				const present = contact.vCard.getAllProperties('x-socialprofile')
-					.filter(prop => supportedNetwork
-						.includes((prop.getParameter('type')).toString().toLowerCase()))
-				if (present.length > 0) {
-					supported.push(supportedNetwork)
-				}
-			})
-			return (supported)
+			const supported = this.contact.vCard.getAllProperties('x-socialprofile')
+				.filter(prop => supportedNetworks
+					.includes((prop.getParameter('type')).toString().toLowerCase()))
+				.map(a => a.jCal[1].type.toString().toLowerCase())
+
+			return Array.from(new Set(supported))
 		},
 	},
 	mounted() {
@@ -359,7 +352,7 @@ export default {
 		/**
 		 * Downloads the Avatar from social media
 		 *
-		 * @param {String} network the social network to use
+		 * @param {String} network the social network to use (or 'any' for first match)
 		 */
 		async getSocialAvatar(network) {
 
