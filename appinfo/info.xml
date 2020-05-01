@@ -41,4 +41,10 @@
 	<contactsmenu>
 		<provider>OCA\Contacts\ContactsMenu\Providers\DetailsProvider</provider>
 	</contactsmenu>
+
+	<background-jobs>
+		      <job>OCA\Contacts\Cron\SocialUpdate</job>
+		      <job>OCA\Contacts\Cron\SocialUpdateTest</job>
+	</background-jobs>
+
 </info>

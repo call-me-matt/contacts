@@ -36,7 +36,6 @@ use OCP\L10N\IFactory;
 use OCP\IRequest;
 use OCP\Util;
 
-use DateTime;
 
 class SocialApiController extends ApiController {
 
@@ -239,10 +238,10 @@ class SocialApiController extends ApiController {
 
 			// search contact in that addressbook, get social data
 			$contact = $addressBook->search($contactId, ['UID'], [])[0];
-			$socialprofiles = $contact['X-SOCIALPROFILE'];
-			if (is_null($socialprofiles)) {
+			if (!isset($contact['X-SOCIALPROFILE'])) {
 				return new JSONResponse([], Http::STATUS_PRECONDITION_FAILED);
 			}
+			$socialprofiles = $contact['X-SOCIALPROFILE'];
 
 			// retrieve data
 			$url = $this->getSocialConnector($socialprofiles, $network);
@@ -304,7 +303,7 @@ class SocialApiController extends ApiController {
 		}
 
 		$names = implode(', ', $report['updated']);
-		$now = new DateTime();
+		$now = new \DateTime();
 
 		$manager = \OC::$server->getNotificationManager(); // FIXME: do propper call without OC::
 		//$manager = $this->getContainer()->getServer()->getNotificationManager();
@@ -318,6 +317,35 @@ class SocialApiController extends ApiController {
 					'addressbook' => $addressbookId,
 					'changes' => $changes,
 					'names' => $names
+					]);
+
+		$manager->notify($notification);
+	}
+
+// FIXME: only for testing!!
+	/**
+	 * @NoAdminRequired
+	 *
+	 * Creates a user notification if contacts have been updated
+	 *
+	 * @param {string} addressbookId the ID of the affected addressbook
+	 * @param {array} report the report to communicate
+	 */
+	public function doCronNotify() {
+		$now = new \DateTime();
+
+		$manager = \OC::$server->getNotificationManager(); // FIXME: do propper call without OC::
+		//$manager = $this->getContainer()->getServer()->getNotificationManager();
+		$notification = $manager->createNotification();
+
+		$notification->setApp($this->appName)
+			->setUser('admin') // FIXME: how to get the addressbook owner?
+			->setDateTime($now)
+			->setObject('updated', $now->format('Y/m/d H:i:s'))
+			->setSubject('updateSummary', [
+					'addressbook' => 'filled_later',
+					'changes' => 666,
+					'names' => 'Notification from the Controller'
 					]);
 
 		$manager->notify($notification);
