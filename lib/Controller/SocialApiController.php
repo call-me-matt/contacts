@@ -274,7 +274,7 @@ class SocialApiController extends ApiController {
 			}
 			$changes['PHOTO'] = $photoTag . base64_encode($socialdata);
 
-			if ($changes['PHOTO'] === $contact['PHOTO']) {
+			if (isset($contact['PHOTO']) && $changes['PHOTO'] === $contact['PHOTO']) {
 				return new JSONResponse([], Http::STATUS_NOT_MODIFIED);
 			}
 
