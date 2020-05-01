@@ -26,7 +26,7 @@ return [
 		['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
 		['name' => 'page#index', 'url' => '/{group}', 'verb' => 'GET', 'postfix' => 'group'],
 		['name' => 'page#index', 'url' => '/{group}/{contact}', 'verb' => 'GET', 'postfix' => 'group.contact'],
-		['name' => 'social_api#auto_update', 	'url' => '/api/v1/social/avatar/{network}/{addressbookId}', 'verb' => 'GET'], // FIXME: for testing purposes only?
-		['name' => 'social_api#fetch',     	'url' => '/api/v1/social/avatar/{network}/{addressbookId}/{contactId}', 'verb' => 'GET'],
+		['name' => 'social_api#update_addressbook', 'url' => '/api/v1/social/avatar/{network}/{addressbookId}', 'verb' => 'GET'], // FIXME: for testing purposes only?
+		['name' => 'social_api#update_contact',	    'url' => '/api/v1/social/avatar/{network}/{addressbookId}/{contactId}', 'verb' => 'GET'],
 	]
 ];

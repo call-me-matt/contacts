@@ -34,7 +34,9 @@ use OCP\Contacts\IManager;
 use OCP\IAddressBook;
 use OCP\L10N\IFactory;
 use OCP\IRequest;
+use OCP\Util;
 
+use DateTime;
 
 class SocialApiController extends ApiController {
 
@@ -196,7 +198,7 @@ class SocialApiController extends ApiController {
 	/**
 	 * @NoAdminRequired
 	 *
-	 * Gets the addressbook of an addressbookId
+	 * Gets the addressbook from an addressbookId
 	 *
 	 * @param {String} addressbookId the identifier of the addressbook
 	 *
@@ -216,7 +218,7 @@ class SocialApiController extends ApiController {
 	/**
 	 * @NoAdminRequired
 	 *
-	 * Retrieves social profile data for a contact
+	 * Retrieves social profile data for a contact and updates the entry
 	 *
 	 * @param {String} addressbookId the addressbook identifier
 	 * @param {String} contactId the contact identifier
@@ -224,7 +226,7 @@ class SocialApiController extends ApiController {
 	 *
 	 * @returns {JSONResponse} an empty JSONResponse with respective http status code
 	 */
-	public function fetch(string $addressbookId, string $contactId, string $network) : JSONResponse {
+	public function updateContact(string $addressbookId, string $contactId, string $network) : JSONResponse {
 
 		$url = null;
 
@@ -288,18 +290,54 @@ class SocialApiController extends ApiController {
 
 	/**
 	 * @NoAdminRequired
+	 *
+	 * Creates a user notification if contacts have been updated
+	 *
+	 * @param {string} addressbookId the ID of the affected addressbook
+	 * @param {array} report the report to communicate
+	 */
+	protected function notifyUser(string $addressbookId, array $report) {
+
+		$changes = sizeof($report['updated']);
+		if (!$changes) {
+			return;
+		}
+
+		$names = implode(', ', $report['updated']);
+		$now = new DateTime();
+
+		$manager = \OC::$server->getNotificationManager(); // FIXME: do propper call without OC::
+		//$manager = $this->getContainer()->getServer()->getNotificationManager();
+		$notification = $manager->createNotification();
+
+		$notification->setApp($this->appName)
+			->setUser('admin') // FIXME: how to get the addressbook owner?
+			->setDateTime($now)
+			->setObject('updated', $now->format('Y/m/d H:i:s'))
+			->setSubject('updateSummary', [
+					'addressbook' => $addressbookId,
+					'changes' => $changes,
+					'names' => $names
+					]);
+
+		$manager->notify($notification);
+	}
+
+
+	/**
+	 * @NoAdminRequired
 	 * @NoCSRFRequired
 	 * // FIXME: for testing purpose only
 	 *
-	 * Retrieves social profile data for all contacts of an addressbook
+	 * Updates social profile data for all contacts of an addressbook
 	 * // TODO: how to exclude certain contacts?
 	 *
 	 * @param {String} addressbookId the addressbook identifier
-	 * @param {String} network the social network to use (if unkown: take first match)
+	 * @param {String} network the social network to use (fallback: take first match)
 	 *
-	 * @returns {JSONResponse} a JSONResponse with the list of changed and failed contacts
+	 * @returns {JSONResponse} JSONResponse with the list of changed and failed contacts
 	 */
-	public function autoUpdate(string $addressbookId, string $network) : JSONResponse {
+	public function updateAddressbook(string $addressbookId, string $network) : JSONResponse {
 	// FIXME: public or protected?
 
 			$delay = 2;
@@ -328,7 +366,7 @@ class SocialApiController extends ApiController {
 				sleep($delay);
 
 				try {
-					$r = $this->fetch($addressbookId, $contact['UID'], $network);
+					$r = $this->updateContact($addressbookId, $contact['UID'], $network);
 
 					if ($r->getStatus() === Http::STATUS_OK) {
 						array_push($response['updated'], $contact['FN']);
@@ -345,6 +383,10 @@ class SocialApiController extends ApiController {
 					array_push($response['failed'], $contact['FN']);
 				}
 			}
+
+			// notify user
+			$this->notifyUser($addressbookId, $response);
+
 			return new JSONResponse([$response], Http::STATUS_OK);
 	}
 }
