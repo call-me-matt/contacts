@@ -9,19 +9,18 @@ class SocialUpdate extends \OC\BackgroundJob\TimedJob {
     /** @var SocialApiController */
     private $social;
 
-    public function __construct(ITimeFactory $time, SocialApiController $social) {
-        parent::__construct($time);
+    public function __construct(SocialApiController $social) {
         $this->social = $social;
 
-        // Run once an hour
-        // parent::setInterval(3600);
+        // Run once a week
+        // parent::setInterval(7 * 24 * 60 * 60);
 
-        // Run every 5 minutes
-        parent::setInterval(5 * 60);
+        // FIXME: for testing -- Run every x seconds
+        parent::setInterval(10);
     }
 
     protected function run($arguments) {
-        $this->social->doCronNotify();
+        $this->social->cronUpdate();
     }
 
 }

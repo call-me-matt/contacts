@@ -90,15 +90,20 @@ class Notifier implements INotifier {
 
 		switch ($notification->getSubject()) {
 			case 'updateSummary':
-				$notification->setIcon($this->url->getAbsoluteURL($this->url->imagePath('core', 'categories/social.svg')));
+				try {
+					$notification->setIcon($this->url->getAbsoluteURL($this->url->imagePath('core', 'categories/social.svg')));
 
-				$notification->setParsedSubject($l->t('SocialSync performed: %d contacts updated', [$parameters['changes']]));
+					$notification->setParsedSubject($l->t('SocialSync performed: %d contacts updated', [$parameters['changes']]));
 
-				$names = $parameters['names'];
-				$names = (strlen($names) > 130) ? substr($names,0,127).'...' : $names;
-				$notification->setParsedMessage($names);
+					$names = $parameters['names'];
+					// clip too long lists in notification
+					$names = (strlen($names) > 130) ? substr($names,0,127).'...' : $names;
+					$notification->setParsedMessage($names);
 
-				return $notification;
+					return $notification;
+				} catch (Exception $e) {
+					throw new \InvalidArgumentException();
+				}
 
 			default:
 				// Unknown subject => Unknown notification => throw

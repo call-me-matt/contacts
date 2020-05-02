@@ -322,33 +322,25 @@ class SocialApiController extends ApiController {
 		$manager->notify($notification);
 	}
 
-// FIXME: only for testing!!
+
 	/**
 	 * @NoAdminRequired
 	 *
-	 * Creates a user notification if contacts have been updated
+	 * Triggers a social update of all address books
 	 *
-	 * @param {string} addressbookId the ID of the affected addressbook
-	 * @param {array} report the report to communicate
 	 */
-	public function doCronNotify() {
-		$now = new \DateTime();
+	public function cronUpdate() {
+		// get all address books
+		// FIXME: how to get user's address books? this only returns 'system'
+		$books = array();
+		$addressBooks = $this->manager->getUserAddressBooks();
+		foreach($addressBooks as $ab) {
+			array_push($books, $ab->getUri());
+		}
 
-		$manager = \OC::$server->getNotificationManager(); // FIXME: do propper call without OC::
-		//$manager = $this->getContainer()->getServer()->getNotificationManager();
-		$notification = $manager->createNotification();
-
-		$notification->setApp($this->appName)
-			->setUser('admin') // FIXME: how to get the addressbook owner?
-			->setDateTime($now)
-			->setObject('updated', $now->format('Y/m/d H:i:s'))
-			->setSubject('updateSummary', [
-					'addressbook' => 'filled_later',
-					'changes' => 666,
-					'names' => 'Notification from the Controller'
-					]);
-
-		$manager->notify($notification);
+		// FIXME: generates notification, for testing purpose only...
+		$report = array('updated' =>  $books);
+		$this->notifyUser('no-access-to-address-books', $report);
 	}
 
 
