@@ -43,7 +43,7 @@
 	</contactsmenu>
 
 	<background-jobs>
-		      <job>OCA\Contacts\Cron\SocialUpdate</job>
+		      <job>OCA\Contacts\Cron\SocialUpdateRegistration</job>
 	</background-jobs>
 
 </info>
