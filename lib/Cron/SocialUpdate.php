@@ -27,13 +27,27 @@ use \OCA\Contacts\AppInfo\Application;
 use \OCA\Contacts\Service\SocialUpdateService;
 use \OCA\Contacts\Controller\SocialApiController;
 
+use OCP\IRequest;
+use OCP\Contacts\IManager;
+use OCP\IConfig;
+use OCP\L10N\IFactory;
+use OCP\Util;
+use OCA\DAV\CardDAV\CardDavBackend;
+
 class SocialUpdate extends \OC\BackgroundJob\TimedJob {
 
-    /** @var SocialApiController */
+    /** @var SocialUpdateService */
     private $social;
 
-    public function __construct(SocialUpdateService $social) {
-        $this->social = $social;
+    public function __construct(string $AppName,
+					IRequest $request,
+					IManager $manager,
+					IConfig $config,
+					IFactory $languageFactory,
+					CardDavBackend $davBackend)
+    {
+
+	$this->social = new SocialUpdateService($AppName, $request, $manager, $config, $languageFactory, $davBackend);
 
         // Run once a week
         // parent::setInterval(7 * 24 * 60 * 60);

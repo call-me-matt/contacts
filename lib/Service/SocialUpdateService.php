@@ -39,6 +39,9 @@ use OCP\IConfig;
 use OCP\L10N\IFactory;
 use OCP\Util;
 
+use OCA\DAV\CardDAV\CardDavBackend;
+
+
 class SocialUpdateService extends SocialApiController {
 
 	protected $appName;
@@ -49,12 +52,15 @@ class SocialUpdateService extends SocialApiController {
 	private  $manager;
 	/** @var IConfig */
 	private  $config;
+	/** @var CardDavBackend */
+	private  $davBackend;
 
 	public function __construct(string $AppName,
 					IRequest $request,
 					IManager $manager,
 					IConfig $config,
-					IFactory $languageFactory) {
+					IFactory $languageFactory,
+					CardDavBackend $davBackend) {
 
 		parent::__construct($AppName, $request, $manager, $config, $languageFactory);
 
@@ -62,6 +68,29 @@ class SocialUpdateService extends SocialApiController {
 		$this->languageFactory = $languageFactory;
 		$this->manager = $manager;
 		$this->config = $config;
+		$this->davBackend = $davBackend;
+	}
+
+	/**
+	 * @NoAdminRequired
+	 *
+	 * Retrieves all addressbooks from a user
+	 *
+	 * @param {string} user the user to query
+	 *
+	 * @returns {array} array of IAddressBooks
+	 */
+	protected function getUserAddressbooks(string $user): array {
+		$addressbooks = array();
+		$principal = 'principals/users/'.$user;
+
+		$books = $this->davBackend->getUsersOwnAddressBooks($principal);
+		foreach ($books as $book) {
+			array_push($this->davBackend->getAddressBookById($book['id']), $addressbooks);
+		}
+		return $addressbooks;
+		// FIXME: this seems to be only an array of arrays (not IAddressBooks)
+		// TODO: try out OCA\DAV\CardDAV\IntegrationIAddressBookProvider, new in NCv19
 	}
 
 

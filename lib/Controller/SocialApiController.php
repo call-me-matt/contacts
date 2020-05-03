@@ -36,7 +36,6 @@ use OCP\L10N\IFactory;
 use OCP\IRequest;
 use OCP\Util;
 
-
 class SocialApiController extends ApiController {
 
 	protected $appName;
@@ -81,11 +80,11 @@ class SocialApiController extends ApiController {
 	];
 
 	public function __construct(string $AppName,
-								IRequest $request,
-								IManager $manager,
-								IConfig $config,
-								// IInitialStateService $initialStateService,
-								IFactory $languageFactory) {
+					IRequest $request,
+					IManager $manager,
+					IConfig $config,
+					// IInitialStateService $initialStateService,
+					IFactory $languageFactory) {
 		parent::__construct($AppName, $request);
 
 		$this->appName = $AppName;
@@ -170,9 +169,11 @@ class SocialApiController extends ApiController {
 		foreach($selection as $socialNetSelected => $socialRecipe) {
 
 			// search for this network in user's profile
-			foreach ($socialEntries as $socialNetwork => $profileId) {
+			foreach ($socialEntries as $socialEntry) {
 
-				if ($socialNetSelected === strtolower($socialNetwork)) {
+				if ($socialNetSelected === strtolower($socialEntry['type'])) {
+					$profileId = $socialEntry['value'];
+
 					// cleanups: extract social id
 					if (in_array('basename', $socialRecipe['cleanups'])) {
 						$profileId = basename($profileId);
@@ -237,7 +238,7 @@ class SocialApiController extends ApiController {
 			}
 
 			// search contact in that addressbook, get social data
-			$contact = $addressBook->search($contactId, ['UID'], [])[0];
+			$contact = $addressBook->search($contactId, ['UID'], ['types' => true])[0];
 			if (!isset($contact['X-SOCIALPROFILE'])) {
 				return new JSONResponse([], Http::STATUS_PRECONDITION_FAILED);
 			}
@@ -346,10 +347,6 @@ class SocialApiController extends ApiController {
 					array_push($response['failed'], $contact['FN']);
 				}
 			}
-
-			// notify user
-			$this->notifyUser($addressbookId, $response);
-
 			return new JSONResponse([$response], Http::STATUS_OK);
 	}
 }
