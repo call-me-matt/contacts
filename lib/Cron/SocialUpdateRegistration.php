@@ -45,7 +45,6 @@ class SocialUpdateRegistration extends \OC\BackgroundJob\QueuedJob {
 	/**
 	 * RegisterSocialUpdate constructor.
 	 *
-	 * @param ITimeFactory $time
 	 * @param IUserManager $userManager
 	 * @param IJobList $jobList
 	 */

@@ -39,15 +39,10 @@ class SocialUpdate extends \OC\BackgroundJob\TimedJob {
     /** @var SocialUpdateService */
     private $social;
 
-    public function __construct(string $AppName,
-					IRequest $request,
-					IManager $manager,
-					IConfig $config,
-					IFactory $languageFactory,
-					CardDavBackend $davBackend)
+    public function __construct(SocialUpdateService $social)
     {
 
-	$this->social = new SocialUpdateService($AppName, $request, $manager, $config, $languageFactory, $davBackend);
+	$this->social = $social;
 
         // Run once a week
         // parent::setInterval(7 * 24 * 60 * 60);
