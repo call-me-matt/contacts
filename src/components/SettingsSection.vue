@@ -25,12 +25,18 @@
 		<ul id="addressbook-list">
 			<SettingsAddressbook v-for="addressbook in addressbooks" :key="addressbook.id" :addressbook="addressbook" />
 		</ul>
+		<div>
+			<input
+				id="socialSyncToggle"
+				class="checkbox"
+				:checked="allowSocialSync"
+				type="checkbox"
+				@change="toggleSocialSync">
+			<label for="socialSyncToggle">{{ t('contacts', 'Update avatars from social media') }}</label>
+			<em for="socialSyncToggle">{{ t('contacts', '(checking weekly)') }}</em>
+		</div>
 		<SettingsNewAddressbook :addressbooks="addressbooks" />
 		<SettingsSortContacts class="settings-section" />
-		<SettingsGetSocialAvatars :addressbooks="addressbooks"
-			class="settings-section"
-			@clicked="onClickSocialUpdate"
-			@fileLoaded="onLoad" />
 		<SettingsImportContacts :addressbooks="addressbooks"
 			class="settings-section"
 			@clicked="onClickImport"
@@ -42,7 +48,6 @@
 import SettingsAddressbook from './Settings/SettingsAddressbook'
 import SettingsNewAddressbook from './Settings/SettingsNewAddressbook'
 import SettingsImportContacts from './Settings/SettingsImportContacts'
-import SettingsGetSocialAvatars from './Settings/SettingsGetSocialAvatars'
 import SettingsSortContacts from './Settings/SettingsSortContacts'
 
 export default {
@@ -51,7 +56,6 @@ export default {
 		SettingsAddressbook,
 		SettingsNewAddressbook,
 		SettingsImportContacts,
-		SettingsGetSocialAvatars,
 		SettingsSortContacts,
 	},
 	computed: {
@@ -59,13 +63,18 @@ export default {
 		addressbooks() {
 			return this.$store.getters.getAddressbooks
 		},
+		allowSocialSync() {
+			// TODO: fetch setting
+			return false
+		},
 	},
 	methods: {
 		onClickImport(event) {
 			this.$emit('clicked', event)
 		},
-		onClickSocialUpdate(event) {
-			this.$emit('clicked', event)
+		toggleSocialSync() {
+			// TODO: store setting
+			console.debug('toggle')
 		},
 		onLoad(event) {
 			this.$emit('fileLoaded', false)
