@@ -24,6 +24,7 @@
 namespace OCA\Contacts\Service;
 
 use OCP\Util;
+use OCP\IServerContainer;
 use OCA\DAV\CardDAV\CardDavBackend;
 
 
@@ -31,13 +32,17 @@ class SocialUpdateService {
 
 	protected $appName;
 
+	/** @var IServerContainer */
+	private  $server;
 	/** @var CardDavBackend */
 	private  $davBackend;
 
 	public function __construct(string $AppName,
+					IServerContainer $server,
 					CardDavBackend $davBackend) {
 
 		$this->appName = $AppName;
+		$this->server = $server;
 		$this->davBackend = $davBackend;
 	}
 
@@ -61,6 +66,8 @@ class SocialUpdateService {
 		return $addressbooks;
 		// FIXME: this seems to be only an array of arrays (not IAddressBooks)
 		// TODO: try out OCA\DAV\CardDAV\IntegrationIAddressBookProvider, new in NCv19
+
+		// $manager = $this->server->getContactsManager();
 	}
 
 
@@ -82,10 +89,8 @@ class SocialUpdateService {
 		$names = implode(', ', $report['updated']);
 		$now = new \DateTime();
 
-		$manager = \OC::$server->getNotificationManager(); // FIXME: do propper call without OC::
-		//$manager = $this->getContainer()->getServer()->getNotificationManager();
+		$manager = $this->server->getNotificationManager();
 		$notification = $manager->createNotification();
-
 		$notification->setApp($this->appName)
 			->setUser('admin') // FIXME: for debugging. put $userId here later
 			->setDateTime($now)
@@ -94,7 +99,6 @@ class SocialUpdateService {
 					'changes' => $changes,
 					'names' => $names
 					]);
-
 		$manager->notify($notification);
 	}
 

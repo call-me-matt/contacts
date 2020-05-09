@@ -22,9 +22,6 @@
 
 <template>
 	<div>
-		<ul id="addressbook-list">
-			<SettingsAddressbook v-for="addressbook in addressbooks" :key="addressbook.id" :addressbook="addressbook" />
-		</ul>
 		<div>
 			<input
 				id="socialSyncToggle"
@@ -35,6 +32,9 @@
 			<label for="socialSyncToggle">{{ t('contacts', 'Update avatars from social media') }}</label>
 			<em for="socialSyncToggle">{{ t('contacts', '(checking weekly)') }}</em>
 		</div>
+		<ul id="addressbook-list">
+			<SettingsAddressbook v-for="addressbook in addressbooks" :key="addressbook.id" :addressbook="addressbook" />
+		</ul>
 		<SettingsNewAddressbook :addressbooks="addressbooks" />
 		<SettingsSortContacts class="settings-section" />
 		<SettingsImportContacts :addressbooks="addressbooks"
@@ -62,7 +62,7 @@ export default {
 	},
 	data() {
 		return {
-			allowSocialSync: this.getAllowSocialSync(),
+			allowSocialSync: this.getAllowSocialSync(), // FIXME: this is not working
 		}
 	},
 	computed: {
@@ -81,9 +81,7 @@ export default {
 			// store value
 			let setting = 'yes'
 			this.allowSocialSync ? setting = 'yes' : setting = 'no'
-			// FIXME: returns error code 405
-			// but this works: curl -k -u admin:secret -v --data "allow=yes" https://localhost/apps/contacts/api/v1/social/config/user/allowSocialSync
-			axios.put(generateUrl('apps/contacts/api/v1/social/config/user/allowSocialSync'), {
+			axios.post(generateUrl('apps/contacts/api/v1/social/config/user/allowSocialSync'), {
 				allow: setting,
 			})
 		},
