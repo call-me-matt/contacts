@@ -23,51 +23,21 @@
 
 namespace OCA\Contacts\Service;
 
-use \OCA\Contacts\Controller\SocialApiController;
-
-/*
-use OCP\AppFramework\ApiController;
-use OCP\AppFramework\Http;
-use OCP\AppFramework\Http\DataResponse;
-use OCP\AppFramework\Http\JSONResponse;
-use OCP\AppFramework\Http\TemplateResponse;
-use OCP\IAddressBook;
-*/
-use OCP\IRequest;
-use OCP\Contacts\IManager;
-use OCP\IConfig;
-use OCP\L10N\IFactory;
 use OCP\Util;
-
 use OCA\DAV\CardDAV\CardDavBackend;
 
 
-class SocialUpdateService extends SocialApiController {
+class SocialUpdateService {
 
 	protected $appName;
 
-	/** @var IFactory */
-	private  $languageFactory;
-	/** @var IManager */
-	private  $manager;
-	/** @var IConfig */
-	private  $config;
 	/** @var CardDavBackend */
 	private  $davBackend;
 
 	public function __construct(string $AppName,
-					IRequest $request,
-					IManager $manager,
-					IConfig $config,
-					IFactory $languageFactory,
 					CardDavBackend $davBackend) {
 
-		parent::__construct($AppName, $request, $manager, $config, $languageFactory);
-
 		$this->appName = $AppName;
-		$this->languageFactory = $languageFactory;
-		$this->manager = $manager;
-		$this->config = $config;
 		$this->davBackend = $davBackend;
 	}
 
@@ -134,6 +104,7 @@ class SocialUpdateService extends SocialApiController {
 	 *
 	 * Triggers a social update of all address books
 	 *
+	 * @param {string} userId the user to treat
 	 */
 	public function cronUpdate($userId) {
 		// TODO: get all user owned address books

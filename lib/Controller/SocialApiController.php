@@ -35,13 +35,14 @@ use OCP\IAddressBook;
 use OCP\L10N\IFactory;
 use OCP\IRequest;
 use OCP\Util;
+use OCP\IUser;
+
+use OCA\Contacts\Service\SocialApiService;
+
 
 class SocialApiController extends ApiController {
 
 	protected $appName;
-
-	//** @var IInitialStateService */
-	// private  $initialStateService;
 
 	/** @var IFactory */
 	private  $languageFactory;
@@ -49,12 +50,13 @@ class SocialApiController extends ApiController {
 	private  $manager;
 	/** @var IConfig */
 	private  $config;
+	/** @var SocialApiService */
+	private  $socialApiService;
 
 	/**
 	 * This constant stores the supported social networks
 	 * It is an ordered list, so that first listed items will be checked first
-	 * Each item stores the avatar-url-formula as recipe and a cleanup parameter to
-	 * extract the profile-id from the users entry
+	 * Each item stores the avatar-url-formula as recipe and cleanup parameters
 	 * 
 	 * @const {array} SOCIAL_CONNECTORS dictionary of supported social networks
 	 */
@@ -62,6 +64,10 @@ class SocialApiController extends ApiController {
 		'facebook' 	=> [
 			'recipe' 	=> 'https://graph.facebook.com/{socialId}/picture?width=720',
 			'cleanups' 	=> ['basename'],
+		],
+		'instagram' 	=> [
+			'recipe' 	=> 'https://www.instagram.com/{socialId}/?__a=1',
+			'cleanups' 	=> ['basename', 'json' => 'graphql->user->profile_pic_url_hd'],
 		],
 		'tumblr' 	=> [
 			'recipe' 	=> 'https://api.tumblr.com/v2/blog/{socialId}/avatar/512',
@@ -84,7 +90,8 @@ class SocialApiController extends ApiController {
 					IManager $manager,
 					IConfig $config,
 					// IInitialStateService $initialStateService,
-					IFactory $languageFactory) {
+					IFactory $languageFactory,
+					SocialApiService $socialApiService) {
 		parent::__construct($AppName, $request);
 
 		$this->appName = $AppName;
@@ -92,6 +99,32 @@ class SocialApiController extends ApiController {
 		$this->languageFactory = $languageFactory;
 		$this->manager = $manager;
 		$this->config = $config;
+		$this->socialApiService = $socialApiService;
+	}
+
+
+	/**
+	 * update appconfig (admin setting)
+	 *
+	 * @param {String} key the identifier to change
+	 * @param {String} allow the value to set
+	 */
+	public function setAppConfig($key, $allow) {
+		$this->config->setAppValue($this->appName, $key, $allow);
+	}
+	
+	
+	/**
+	 * @NoAdminRequired
+	 *
+	 * update appconfig (user setting)
+	 *
+	 * @param {String} key the identifier to change
+	 * @param {String} allow the value to set
+	 */
+	public function setUserConfig($key, $allow) {
+		$user = \OC_User::getUser();
+		$this->config->setAppValue($user, $this->appName, $key, $allow);
 	}
 
 
@@ -103,117 +136,13 @@ class SocialApiController extends ApiController {
 	 * @returns {array} array of the supported social networks
 	 */
 	public function getSupportedNetworks() : array {
+		$isAdminEnabled = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
+		if ($isAdminEnabled !== 'yes') {
+			return array();
+		}
 		return array_keys(self::SOCIAL_CONNECTORS);
 	}
 
-	/**
-	 * @NoAdminRequired
-	 *
-	 * Creates the photo start tag for the vCard
-	 *
-	 * @param {float} version the version of the vCard
-	 * @param {array} header the http response headers containing the image type
-	 *
-	 * @returns {String} the photo start tag or null in case of errors
-	 */
-	protected function getPhotoTag(float $version, array $header) : ?string {
-
-		$type = null;
-
-		// get image type from headers
-		foreach ($header as $value) {
-			if (preg_match('/^Content-Type:/i', $value)) {
-				if (stripos($value, "image") !== false) {
-					$type = substr($value, stripos($value, "image"));
-				}
-			}
-		}
-		if (is_null($type)) {
-			return null;
-		}
-
-		// return respective photo tag
-		if ($version >= 4.0) {
-			return "data:" . $type . ";base64,";
-		}
-
-		if ($version >= 3.0) {
-			$type = str_replace('image/', '', $type);
-			return "ENCODING=b;TYPE=" . strtoupper($type) . ":";
-		}
-
-		return null;
-	}
-
-
-	/**
-	 * @NoAdminRequired
-	 *
-	 * generate download url for a social entry
-	 *
-	 * @param {array} socialentries all social data from the contact
-	 * @param {String} network the choice which network to use (fallback: take first match)
-	 *
-	 * @returns {String} the url to the requested information or null in case of errors
-	 */
-	protected function getSocialConnector(array $socialEntries, string $network) : ?string {
-
-		$connector = null;
-		$selection = self::SOCIAL_CONNECTORS;
-		// check if dedicated network selected
-		if (isset(self::SOCIAL_CONNECTORS[$network])) {
-			$selection = array($network => self::SOCIAL_CONNECTORS[$network]);
-		}
-
-		// check selected networks in order
-		foreach($selection as $socialNetSelected => $socialRecipe) {
-
-			// search for this network in user's profile
-			foreach ($socialEntries as $socialEntry) {
-
-				if ($socialNetSelected === strtolower($socialEntry['type'])) {
-					$profileId = $socialEntry['value'];
-
-					// cleanups: extract social id
-					if (in_array('basename', $socialRecipe['cleanups'])) {
-						$profileId = basename($profileId);
-					}
-					if (array_key_exists('regex', $socialRecipe['cleanups'])) {
-						if (preg_match($socialRecipe['cleanups']['regex'], $profileId, $matches)) {
-							$profileId = $matches[$socialRecipe['cleanups']['group']];
-						}
-					}
-					$connector = str_replace("{socialId}", $profileId, $socialRecipe['recipe']);
-					break;
-				}
-			}
-			if ($connector) {
-				break;
-			}
-		}
-		return ($connector);
-	}
-
-
-	/**
-	 * @NoAdminRequired
-	 *
-	 * Gets the addressbook from an addressbookId
-	 *
-	 * @param {String} addressbookId the identifier of the addressbook
-	 *
-	 * @returns {IAddressBook} the corresponding addressbook or null
-	 */
-	protected function getAddressBook(string $addressbookId) : ?IAddressBook {
-		$addressBook = null;
-		$addressBooks = $this->manager->getUserAddressBooks();
-		foreach($addressBooks as $ab) {
-			if ($ab->getUri() === $addressbookId) {
-				$addressBook = $ab;
-			}
-		}
-		return $addressBook;
-	}
 
 	/**
 	 * @NoAdminRequired
@@ -232,7 +161,7 @@ class SocialApiController extends ApiController {
 
 		try {
 			// get corresponding addressbook
-			$addressBook = $this->getAddressBook($addressbookId);
+			$addressBook = $this->socialApiService->getAddressBook($addressbookId);
 			if (is_null($addressBook)) {
 				return new JSONResponse([], Http::STATUS_BAD_REQUEST);
 			}
@@ -243,9 +172,8 @@ class SocialApiController extends ApiController {
 				return new JSONResponse([], Http::STATUS_PRECONDITION_FAILED);
 			}
 			$socialprofiles = $contact['X-SOCIALPROFILE'];
-
 			// retrieve data
-			$url = $this->getSocialConnector($socialprofiles, $network);
+			$url = $this->socialApiService->getSocialConnector(self::SOCIAL_CONNECTORS, $socialprofiles, $network);
 
 			if (empty($url)) {
 				return new JSONResponse([], Http::STATUS_NOT_IMPLEMENTED);
@@ -260,7 +188,7 @@ class SocialApiController extends ApiController {
 			$context = stream_context_create($opts);
 			$socialdata = file_get_contents($url, false, $context);
 
-			$photoTag = $this->getPhotoTag($contact['VERSION'], $http_response_header);
+			$photoTag = $this->socialApiService->getPhotoTag($contact['VERSION'], $http_response_header);
 
 			if (!$socialdata || $photoTag === null) {
 				return new JSONResponse([], Http::STATUS_NOT_FOUND);

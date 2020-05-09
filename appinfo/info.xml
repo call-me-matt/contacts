@@ -46,4 +46,7 @@
 		      <job>OCA\Contacts\Cron\SocialUpdateRegistration</job>
 	</background-jobs>
 
+	<settings>
+		<admin>OCA\Contacts\Settings\AdminSettings</admin>
+	</settings>
 </info>

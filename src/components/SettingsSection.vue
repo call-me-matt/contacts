@@ -45,6 +45,8 @@
 </template>
 
 <script>
+// import Axios from '@nextcloud/axios'
+// import { generateUrl } from '@nextcloud/router'
 import SettingsAddressbook from './Settings/SettingsAddressbook'
 import SettingsNewAddressbook from './Settings/SettingsNewAddressbook'
 import SettingsImportContacts from './Settings/SettingsImportContacts'
@@ -73,8 +75,12 @@ export default {
 			this.$emit('clicked', event)
 		},
 		toggleSocialSync() {
-			// TODO: store setting
 			console.debug('toggle')
+			// TODO: store setting
+			// allowSocialSync = !allowSocialSync
+			// Axios.put(generateUrl('apps/contacts/api/v1/social/config/user/' + setting), {
+			// allow: this[setting].toString(),
+			// })
 		},
 		onLoad(event) {
 			this.$emit('fileLoaded', false)

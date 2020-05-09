@@ -25,6 +25,7 @@ namespace OCA\Contacts\Cron;
 
 use \OCA\Contacts\AppInfo\Application;
 use \OCA\Contacts\Service\SocialUpdateService;
+use \OCA\Contacts\Controller\SocialApiService;
 use \OCA\Contacts\Controller\SocialApiController;
 
 use OCP\IRequest;
@@ -53,6 +54,19 @@ class SocialUpdate extends \OC\BackgroundJob\TimedJob {
 
     protected function run($arguments) {
 	$userId = $arguments['userId'];
+	
+	// check if admin allows for social updates:
+	$isAdminEnabled = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
+	if ($isAdminEnabled !=== 'yes') {
+		return;
+	}
+	
+	// check if user did not opt-out:
+	$isUserEnabled = $this->config->getUserValue($userId, $this->appName, 'allowSocialSync', 'yes');
+	if ($isUserEnabled !=== 'yes') {
+		return;
+	}
+	
         $this->social->cronUpdate($userId);
     }
 
