@@ -25,25 +25,25 @@ namespace OCA\Contacts\Cron;
 
 use \OCA\Contacts\AppInfo\Application;
 use \OCA\Contacts\Service\SocialUpdateService;
-use \OCA\Contacts\Controller\SocialApiService;
-use \OCA\Contacts\Controller\SocialApiController;
-
-use OCP\IRequest;
-use OCP\Contacts\IManager;
 use OCP\IConfig;
-use OCP\L10N\IFactory;
 use OCP\Util;
-use OCA\DAV\CardDAV\CardDavBackend;
 
 class SocialUpdate extends \OC\BackgroundJob\TimedJob {
 
+    private $appName;
+   
     /** @var SocialUpdateService */
     private $social;
+   
+    /** @var IConfig */
+    private $config;
 
-    public function __construct(SocialUpdateService $social)
+    public function __construct(string $AppName, SocialUpdateService $social, IConfig $config)
     {
 
+	$this->appName = $AppName;
 	$this->social = $social;
+	$this->config = $config;
 
         // Run once a week
         // parent::setInterval(7 * 24 * 60 * 60);
@@ -54,19 +54,20 @@ class SocialUpdate extends \OC\BackgroundJob\TimedJob {
 
     protected function run($arguments) {
 	$userId = $arguments['userId'];
-	
+
 	// check if admin allows for social updates:
 	$isAdminEnabled = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
-	if ($isAdminEnabled !=== 'yes') {
+
+	if (!($isAdminEnabled === 'yes')) {
 		return;
 	}
-	
+
 	// check if user did not opt-out:
 	$isUserEnabled = $this->config->getUserValue($userId, $this->appName, 'allowSocialSync', 'yes');
-	if ($isUserEnabled !=== 'yes') {
+	if (!($isUserEnabled === 'yes')) {
 		return;
 	}
-	
+
         $this->social->cronUpdate($userId);
     }
 

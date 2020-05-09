@@ -45,8 +45,8 @@
 </template>
 
 <script>
-// import Axios from '@nextcloud/axios'
-// import { generateUrl } from '@nextcloud/router'
+import axios from '@nextcloud/axios'
+import { generateUrl } from '@nextcloud/router'
 import SettingsAddressbook from './Settings/SettingsAddressbook'
 import SettingsNewAddressbook from './Settings/SettingsNewAddressbook'
 import SettingsImportContacts from './Settings/SettingsImportContacts'
@@ -60,14 +60,15 @@ export default {
 		SettingsImportContacts,
 		SettingsSortContacts,
 	},
+	data() {
+		return {
+			allowSocialSync: this.getAllowSocialSync(),
+		}
+	},
 	computed: {
 		// store getters
 		addressbooks() {
 			return this.$store.getters.getAddressbooks
-		},
-		allowSocialSync() {
-			// TODO: fetch setting
-			return false
 		},
 	},
 	methods: {
@@ -75,12 +76,23 @@ export default {
 			this.$emit('clicked', event)
 		},
 		toggleSocialSync() {
-			console.debug('toggle')
-			// TODO: store setting
-			// allowSocialSync = !allowSocialSync
-			// Axios.put(generateUrl('apps/contacts/api/v1/social/config/user/' + setting), {
-			// allow: this[setting].toString(),
-			// })
+			this.allowSocialSync = !this.allowSocialSync
+
+			// store value
+			let setting = 'yes'
+			this.allowSocialSync ? setting = 'yes' : setting = 'no'
+			// FIXME: returns error code 405
+			// but this works: curl -k -u admin:secret -v --data "allow=yes" https://localhost/apps/contacts/api/v1/social/config/user/allowSocialSync
+			axios.put(generateUrl('apps/contacts/api/v1/social/config/user/allowSocialSync'), {
+				allow: setting,
+			})
+		},
+		async getAllowSocialSync() {
+			const response = await axios.get(generateUrl('apps/contacts/api/v1/social/config/user/allowSocialSync'))
+			if (response['data'] === 'null' || response['data'] === 'yes') {
+				return true
+			}
+			return false
 		},
 		onLoad(event) {
 			this.$emit('fileLoaded', false)

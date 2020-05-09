@@ -108,12 +108,15 @@ class SocialApiController extends ApiController {
 	 *
 	 * @param {String} key the identifier to change
 	 * @param {String} allow the value to set
+	 *
+	 * @returns {JSONResponse} an empty JSONResponse with respective http status code
 	 */
 	public function setAppConfig($key, $allow) {
 		$this->config->setAppValue($this->appName, $key, $allow);
+		return new JSONResponse([], Http::STATUS_OK);
 	}
-	
-	
+
+
 	/**
 	 * @NoAdminRequired
 	 *
@@ -121,10 +124,28 @@ class SocialApiController extends ApiController {
 	 *
 	 * @param {String} key the identifier to change
 	 * @param {String} allow the value to set
+	 *
+	 * @returns {JSONResponse} an empty JSONResponse with respective http status code
 	 */
 	public function setUserConfig($key, $allow) {
 		$user = \OC_User::getUser();
-		$this->config->setAppValue($user, $this->appName, $key, $allow);
+		$this->config->setUserValue($user, $this->appName, $key, $allow);
+		return new JSONResponse([], Http::STATUS_OK);
+	}
+
+
+	/**
+	 * @NoAdminRequired
+	 *
+	 * retrieve appconfig (user setting)
+	 *
+	 * @param {String} key the identifier to retrieve
+	 *
+	 * @returns {string} the desired value or null if not existing
+	 */
+	public function getUserConfig($key) {
+		$user = \OC_User::getUser();
+		return $this->config->getUserValue($user, $this->appName, $key, 'null');
 	}
 
 

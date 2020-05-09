@@ -30,5 +30,6 @@ return [
 		['name' => 'social_api#update_contact',	'url' => '/api/v1/social/avatar/{network}/{addressbookId}/{contactId}', 'verb' => 'GET'],
 		['name' => 'social_api#set_app_config',	'url' => '/api/v1/social/config/global/{key}', 'verb' => 'POST'],
 		['name' => 'social_api#set_user_config',	'url' => '/api/v1/social/config/user/{key}', 'verb' => 'POST'],
+		['name' => 'social_api#get_user_config',	'url' => '/api/v1/social/config/user/{key}', 'verb' => 'GET'],
 	]
 ];
