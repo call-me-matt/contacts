@@ -58,6 +58,8 @@ class SocialUpdateRegistration extends \OC\BackgroundJob\QueuedJob {
 
 	/**
 	 * @inheritDoc
+	 *
+	 * FIXME: what about later added users? should this better be a TimedJob?
 	 */
 	protected function run($arguments) {
 		$this->userManager->callForSeenUsers(function (IUser $user) {

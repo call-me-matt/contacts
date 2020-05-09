@@ -23,9 +23,10 @@
 
 namespace OCA\Contacts\Settings;
 
+use OCA\Contacts\AppInfo\Application;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IConfig;
-use OCP\IL10N;
+use OCP\IInitialStateService;
 use OCP\Settings\ISettings;
 
 class AdminSettings implements ISettings {
@@ -35,8 +36,8 @@ class AdminSettings implements ISettings {
         /** @var IConfig */
         private $config;
 
-        /** @var IL10N */
-        private $l;
+        /** @var IInitialStateService */
+		private $initialStateService;
 
         /**
          * Admin constructor.
@@ -44,24 +45,21 @@ class AdminSettings implements ISettings {
          * @param IConfig $config
          * @param IL10N $l
          */
-        public function __construct(string $AppName,
-					IConfig $config,
-					IL10N $l
-        ) {
-                $this->config = $config;
-                $this->l = $l;
-                $this->appName = $AppName;
-        }
+ 	public function __construct(string $AppName, IConfig $config, IInitialStateService $initialStateService) {
+		$this->appName = $AppName;
+		$this->config = $config;
+		$this->initialStateService = $initialStateService;
+	}
 
         /**
          * @return TemplateResponse
          */
         public function getForm() {
-                $isAdminEnabled = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
-
-		$parameters = ['allowSocialSync' => $isAdminEnabled];
-
-                return new TemplateResponse($this->appName, 'settings/admin', $parameters);
+        	foreach (Application::AvailableSettings as $key => $default) {
+			$data = $this->config->getAppValue($this->appName, $key, $default);
+			$this->initialStateService->provideInitialState($this->appName, $key, $data);
+		}
+		return new TemplateResponse($this->appName, 'settings/admin');
         }
 
         /**

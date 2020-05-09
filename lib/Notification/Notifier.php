@@ -96,8 +96,6 @@ class Notifier implements INotifier {
 					$notification->setParsedSubject($l->t('SocialSync performed: %d contacts updated', [$parameters['changes']]));
 
 					$names = $parameters['names'];
-					// clip too long lists in notification
-					$names = (strlen($names) > 130) ? substr($names,0,127).'...' : $names;
 					$notification->setParsedMessage($names);
 
 					return $notification;

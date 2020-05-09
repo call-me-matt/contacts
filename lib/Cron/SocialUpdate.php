@@ -63,7 +63,7 @@ class SocialUpdate extends \OC\BackgroundJob\TimedJob {
 	}
 
 	// check if user did not opt-out:
-	$isUserEnabled = $this->config->getUserValue($userId, $this->appName, 'allowSocialSync', 'yes');
+	$isUserEnabled = $this->config->getUserValue($userId, $this->appName, 'enableSocialSync', 'yes');
 	if (!($isUserEnabled === 'yes')) {
 		return;
 	}

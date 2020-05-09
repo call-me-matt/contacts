@@ -22,12 +22,12 @@
 
 <template>
 	<div>
-		<div>
+		<div v-if="allowSocialSync">
 			<input
 				id="socialSyncToggle"
-				class="checkbox"
-				:checked="allowSocialSync"
+				v-model="enableSocialSync"
 				type="checkbox"
+				class="checkbox"
 				@change="toggleSocialSync">
 			<label for="socialSyncToggle">{{ t('contacts', 'Update avatars from social media') }}</label>
 			<em for="socialSyncToggle">{{ t('contacts', '(checking weekly)') }}</em>
@@ -47,6 +47,7 @@
 <script>
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
+import { loadState } from '@nextcloud/initial-state'
 import SettingsAddressbook from './Settings/SettingsAddressbook'
 import SettingsNewAddressbook from './Settings/SettingsNewAddressbook'
 import SettingsImportContacts from './Settings/SettingsImportContacts'
@@ -62,7 +63,11 @@ export default {
 	},
 	data() {
 		return {
-			allowSocialSync: this.getAllowSocialSync(), // FIXME: this is not working
+			// FIXME: this is not working :(
+			'allowSocialSync': loadState('contacts', 'allowSocialSync') === 'yes',
+
+			// FIXME: this is not working :(
+			'enableSocialSync': this.getEnableSocialSync === 'yes',
 		}
 	},
 	computed: {
@@ -76,21 +81,16 @@ export default {
 			this.$emit('clicked', event)
 		},
 		toggleSocialSync() {
-			this.allowSocialSync = !this.allowSocialSync
-
-			// store value
-			let setting = 'yes'
-			this.allowSocialSync ? setting = 'yes' : setting = 'no'
-			axios.post(generateUrl('apps/contacts/api/v1/social/config/user/allowSocialSync'), {
-				allow: setting,
+			axios.post(generateUrl('apps/contacts/api/v1/social/config/user/enableSocialSync'), {
+				allow: this.enableSocialSync ? 'yes' : 'no',
 			})
 		},
-		async getAllowSocialSync() {
-			const response = await axios.get(generateUrl('apps/contacts/api/v1/social/config/user/allowSocialSync'))
-			if (response['data'] === 'null' || response['data'] === 'yes') {
-				return true
+		async getEnableSocialSync() {
+			const response = await axios.get(generateUrl('apps/contacts/api/v1/social/config/user/enableSocialSync'))
+			if (response['data'] === 'null') {
+				return 'yes'
 			}
-			return false
+			return response['data']
 		},
 		onLoad(event) {
 			this.$emit('fileLoaded', false)
