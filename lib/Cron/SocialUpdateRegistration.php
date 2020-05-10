@@ -29,12 +29,15 @@ use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\QueuedJob;
 use OCP\IUser;
+use OCP\IConfig;
 use OCP\IUserManager;
 
 use \OCA\Contacts\AppInfo\Application;
 use \OCA\Contacts\Controller\SocialApiController;
 
-class SocialUpdateRegistration extends \OC\BackgroundJob\QueuedJob {
+class SocialUpdateRegistration extends \OC\BackgroundJob\TimedJob {
+
+	private $appName;
 
 	/** @var IUserManager */
 	private $userManager;
@@ -42,31 +45,51 @@ class SocialUpdateRegistration extends \OC\BackgroundJob\QueuedJob {
 	/** @var IJobList */
 	private $jobList;
 
+	/** @var IConfig */
+	private $config;
+
 	/**
 	 * RegisterSocialUpdate constructor.
 	 *
 	 * @param IUserManager $userManager
 	 * @param IJobList $jobList
 	 */
-	public function __construct(//  ITimeFactory $time,
+	public function __construct(string $AppName,
+					//  ITimeFactory $time,
 					IUserManager $userManager,
+					IConfig $config,
 					IJobList $jobList) {
 		//parent::__construct($time);
+		
+		$this->appName = $AppName;
 		$this->userManager = $userManager;
+		$this->config = $config;
 		$this->jobList = $jobList;
+
+		// Run once a week
+		parent::setInterval(7 * 24 * 60 * 60);
 	}
 
 	/**
 	 * @inheritDoc
-	 *
-	 * FIXME: what about later added users? should this better be a TimedJob?
 	 */
 	protected function run($arguments) {
-		$this->userManager->callForSeenUsers(function (IUser $user) {
-			$this->jobList->add(SocialUpdate::class, [
-				'userId' => $user->getUID()
-			]);
-		});
 
+		// check if admin allows for social updates:
+		$isAdminEnabled = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
+		if (!($isAdminEnabled === 'yes')) {
+			return;
+		}
+
+		$this->userManager->callForSeenUsers(function (IUser $user) {
+
+			// check if user did not opt-out:
+			$isUserEnabled = $this->config->getUserValue($user->getUID(), $this->appName, 'enableSocialSync', 'yes');
+			if ($isUserEnabled === 'yes') {
+				$this->jobList->add(SocialUpdate::class, [
+					'userId' => $user->getUID()
+				]);
+			}
+		});
 	}
 }
