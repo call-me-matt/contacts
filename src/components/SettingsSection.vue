@@ -2,6 +2,7 @@
   - @copyright Copyright (c) 2018 John Molakvoæ <skjnldsv@protonmail.com>
   -
   - @author John Molakvoæ <skjnldsv@protonmail.com>
+  - @author Matthias Heinisch <nextcloud@matthiasheinisch.de>
   -
   - @license GNU AGPL version 3 or any later version
   -
@@ -30,7 +31,7 @@
 				class="checkbox"
 				@change="toggleSocialSync">
 			<label for="socialSyncToggle">{{ t('contacts', 'Update avatars from social media') }}</label>
-			<em for="socialSyncToggle">{{ t('contacts', '(checking weekly)') }}</em>
+			<em for="socialSyncToggle">{{ t('contacts', '(refreshed once per week)') }}</em>
 		</div>
 		<ul id="addressbook-list">
 			<SettingsAddressbook v-for="addressbook in addressbooks" :key="addressbook.id" :addressbook="addressbook" />
@@ -63,11 +64,8 @@ export default {
 	},
 	data() {
 		return {
-			// FIXME: this is not working :(
-			'allowSocialSync': loadState('contacts', 'allowSocialSync') === 'yes',
-
-			// FIXME: this is not working :(
-			'enableSocialSync': this.getEnableSocialSync === 'yes',
+			'allowSocialSync': loadState('contacts', 'allowSocialSync') !== 'no',
+			'enableSocialSync': loadState('contacts', 'enableSocialSync') !== 'no',
 		}
 	},
 	computed: {
@@ -84,13 +82,6 @@ export default {
 			axios.post(generateUrl('apps/contacts/api/v1/social/config/user/enableSocialSync'), {
 				allow: this.enableSocialSync ? 'yes' : 'no',
 			})
-		},
-		async getEnableSocialSync() {
-			const response = await axios.get(generateUrl('apps/contacts/api/v1/social/config/user/enableSocialSync'))
-			if (response['data'] === 'null') {
-				return 'yes'
-			}
-			return response['data']
 		},
 		onLoad(event) {
 			this.$emit('fileLoaded', false)

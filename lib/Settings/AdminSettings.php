@@ -37,7 +37,7 @@ class AdminSettings implements ISettings {
         private $config;
 
         /** @var IInitialStateService */
-		private $initialStateService;
+	private $initialStateService;
 
         /**
          * Admin constructor.

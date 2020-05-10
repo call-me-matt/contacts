@@ -3,6 +3,7 @@
  * @copyright Copyright (c) 2018 John Molakvoæ <skjnldsv@protonmail.com>
  *
  * @author John Molakvoæ <skjnldsv@protonmail.com>
+ * @author Matthias Heinisch <nextcloud@matthiasheinisch.de>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -71,13 +72,19 @@ class PageController extends Controller {
 	 * Default routing
 	 */
 	public function index(): TemplateResponse {
+		$userId = \OC_User::getUser();
+
 		$locales = $this->languageFactory->findAvailableLocales();
 		$defaultProfile = $this->config->getAppValue($this->appName, 'defaultProfile', 'HOME');
 		$supportedNetworks = $this->socialApi->getSupportedNetworks();
+		$allowSocialSync = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
+		$enableSocialSync = $this->config->getUserValue($userId, $this->appName, 'enableSocialSync', 'yes');
 
 		$this->initialStateService->provideInitialState($this->appName, 'locales', $locales);
 		$this->initialStateService->provideInitialState($this->appName, 'defaultProfile', $defaultProfile);
 		$this->initialStateService->provideInitialState($this->appName, 'supportedNetworks', $supportedNetworks);
+		$this->initialStateService->provideInitialState($this->appName, 'allowSocialSync', $allowSocialSync);
+		$this->initialStateService->provideInitialState($this->appName, 'enableSocialSync', $enableSocialSync);
 
 		Util::addScript($this->appName, 'contacts');
 		Util::addStyle($this->appName, 'contacts');
