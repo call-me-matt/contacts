@@ -125,19 +125,4 @@ class SocialApiController extends ApiController {
 	public function updateContact(string $addressbookId, string $contactId, string $network) : JSONResponse {
 		return $this->socialApiService->updateContact($addressbookId, $contactId, $network);
 	}
-
-
-	/**
-	 * @NoAdminRequired
-	 *
-	 * Updates social profile data for all contacts of an addressbook
-	 *
-	 * @param {String} network the social network to use (fallback: take first match)
-	 * @param {String} user the address book owner
-	 *
-	 * @returns {JSONResponse} JSONResponse with the list of changed and failed contacts
-	 */
-	public function updateAddressbooks(string $network, string $user) : JSONResponse {
-		return $this->socialApiService->updateAddressbooks($network, $user);
-	}
 }

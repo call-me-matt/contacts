@@ -23,6 +23,8 @@
 
 namespace OCA\Contacts\Service;
 
+use OCA\Contacts\Service\Social\CompositeSocialProvider;
+
 use OCP\Contacts\IManager;
 use OCP\IAddressBook;
 
@@ -35,10 +37,13 @@ use OCA\DAV\CardDAV\ContactsManager;
 use OCP\IURLGenerator;
 use OCP\IL10N;
 
+
 class SocialApiService {
 
 	protected $appName;
 
+	/** @var CompositeSocialProvider */
+	private $socialProvider;
 	/** @var IManager */
 	private  $manager;
 	/** @var IConfig */
@@ -50,35 +55,8 @@ class SocialApiService {
 	/** @var CardDavBackend */
 	private  $davBackend;
 
-	/**
-	 * This constant stores the supported social networks
-	 * It is an ordered list, so that first listed items will be checked first
-	 * Each item stores the avatar-url-formula as recipe and cleanup parameters
-	 *
-	 * @const {array} SOCIAL_CONNECTORS dictionary of supported social networks
-	 */
-	const SOCIAL_CONNECTORS = [
-		'instagram' 	=> [
-			'recipe' 	=> 'https://www.instagram.com/{socialId}/?__a=1',
-			'cleanups' 	=> ['basename', 'json' => 'graphql->user->profile_pic_url_hd'],
-		],
-		'facebook' 	=> [
-			'recipe' 	=> 'https://graph.facebook.com/{socialId}/picture?width=720',
-			'cleanups' 	=> ['basename'],
-		],
-		'tumblr' 	=> [
-			'recipe' 	=> 'https://api.tumblr.com/v2/blog/{socialId}/avatar/512',
-			'cleanups' 	=> ['regex' => '/(?:http[s]*\:\/\/)*(.*?)\.(?=[^\/]*\..{2,5})/i', 'group' => 1], // "subdomain"
-		],
-		/* untrusted
-		'twitter' 	=> [
-			'recipe' 	=> 'http://avatars.io/twitter/{socialId}',
-			'cleanups' 	=> ['basename'],
-		],
-		*/
-	];
-
 	public function __construct(string $AppName,
+					CompositeSocialProvider $socialProvider,
 					IManager $manager,
 					IConfig $config,
 					IL10N $l10n,
@@ -86,6 +64,7 @@ class SocialApiService {
 					CardDavBackend $davBackend) {
 
 		$this->appName = $AppName;
+		$this->socialProvider = $socialProvider;
 		$this->manager = $manager;
 		$this->config = $config;
 		$this->l10n = $l10n;
@@ -106,7 +85,7 @@ class SocialApiService {
 		if ($isAdminEnabled !== 'yes') {
 			return array();
 		}
-		return array_keys(self::SOCIAL_CONNECTORS);
+		return $this->socialProvider->getSupportedNetworks();
 	}
 
 
@@ -150,44 +129,6 @@ class SocialApiService {
 	}
 
 
-
-	/**
-	 * @NoAdminRequired
-	 *
-	 * extracts desired value from a json
-	 *
-	 * @param {string} url the target from where to fetch the json
-	 * @param {String} the desired key to filter for (nesting possible with '->')
-	 *
-	 * @returns {String} the extracted value or null if not present
-	 */
-	protected function getFromJson(string $url, string $desired) : ?string {
-		try {
-			$opts = [
-				"http" => [
-					"method" => "GET",
-					"header" => "User-Agent: Nextcloud Contacts App"
-				]
-			];
-			$context = stream_context_create($opts);
-			$result = file_get_contents($url, false, $context);
-
-			$jsonResult = json_decode($result,true);
-			$location = explode ('->' , $desired);
-			foreach ($location as $loc) {
-				if (!isset($jsonResult[$loc])) {
-					return null;
-				}
-				$jsonResult = $jsonResult[$loc];
-			}
-			return $jsonResult;
-		}
-		catch (Exception $e) {
-			return null;
-		}
-	}
-
-
 	/**
 	 * @NoAdminRequired
 	 *
@@ -221,65 +162,9 @@ class SocialApiService {
 		$cm = new ContactsManager($this->davBackend, $this->l10n);
 		$cm->setupContactsProvider($manager, $user, $this->urlGen);
 		//FIXME: better would be: davBackend->getUsersOwnAddressBooks($principal); (no shared or system address books)
+		// ... or the promising IAddressBookProvider, which I cant get running
 		$this->manager = $manager;
 	}
-
-
-	/**
-	 * @NoAdminRequired
-	 *
-	 * generate download url for a social entry
-	 *
-	 * @param {array} socialEntries all social data from the contact
-	 * @param {String} network the choice which network to use (fallback: take first match)
-	 *
-	 * @returns {String} the url to the requested information or null in case of errors
-	 */
-	protected function getSocialConnector(array $socialEntries, string $network) : ?string {
-
-		$connector = null;
-		$selection = self::SOCIAL_CONNECTORS;
-		// check if dedicated network selected
-		if (isset(self::SOCIAL_CONNECTORS[$network])) {
-			$selection = array($network => self::SOCIAL_CONNECTORS[$network]);
-		}
-
-		// check selected networks in order
-		foreach($selection as $socialNetSelected => $socialRecipe) {
-
-			// search for this network in user's profile
-			foreach ($socialEntries as $socialEntry) {
-
-				$socialNetSelected = strtolower($socialNetSelected);
-				if ($socialNetSelected === strtolower($socialEntry['type'])) {
-					$profileId = $socialEntry['value'];
-
-					// cleanups: extract social id
-					if (in_array('basename', $socialRecipe['cleanups'])) {
-						$profileId = basename($profileId);
-					}
-					if (array_key_exists('regex', $socialRecipe['cleanups'])) {
-						if (preg_match($socialRecipe['cleanups']['regex'], $profileId, $matches)) {
-							$profileId = $matches[$socialRecipe['cleanups']['group']];
-						}
-					}
-					$connector = str_replace("{socialId}", $profileId, $socialRecipe['recipe']);
-					if (array_key_exists('json', $socialRecipe['cleanups'])) {
-						$connector = $this->getFromJson($connector, $socialRecipe['cleanups']['json']);
-						if (empty($connector)) {
-							$connector = 'invalid';
-						}
-					}
-					break;
-				}
-			}
-			if ($connector && $connector !== 'invalid') {
-				break;
-			}
-		}
-		return ($connector);
-	}
-
 
 	/**
 	 * @NoAdminRequired
@@ -310,7 +195,7 @@ class SocialApiService {
 			}
 			$socialprofiles = $contact['X-SOCIALPROFILE'];
 			// retrieve data
-			$url = $this->getSocialConnector($socialprofiles, $network);
+			$url = $this->socialProvider->getSocialConnector($socialprofiles, $network);
 
 			if (empty($url)) {
 				return new JSONResponse([], Http::STATUS_NOT_IMPLEMENTED);

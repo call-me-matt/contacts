@@ -25,7 +25,6 @@ use OCP\AppFramework\App;
 use OCP\IURLGenerator;
 use OCP\IL10N;
 use OCP\INavigationManager;
-use OCA\Contacts\Notification\Notifier;
 
 class Application extends App {
 
@@ -70,13 +69,5 @@ class Application extends App {
 			// navigation or on the settings page of your app
 			'name' => $l10n->t('Contacts'),
 		]);
-
-		$this->registerNotificationNotifier();
 	}
-
-        protected function registerNotificationNotifier() {
-                $server = $this->getContainer()->getServer();
-		$server->getNotificationManager()->registerNotifierService(Notifier::class);
-        }
-
 }
