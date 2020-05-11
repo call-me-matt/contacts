@@ -24,7 +24,7 @@
 namespace OCA\Contacts\Cron;
 
 use \OCA\Contacts\AppInfo\Application;
-use \OCA\Contacts\Service\SocialUpdateService;
+use OCA\Contacts\Service\SocialApiService;
 use OCP\Util;
 
 class SocialUpdate extends \OC\BackgroundJob\QueuedJob {
@@ -34,7 +34,7 @@ class SocialUpdate extends \OC\BackgroundJob\QueuedJob {
     /** @var SocialUpdateService */
     private $social;
 
-    public function __construct(string $AppName, SocialUpdateService $social)
+    public function __construct(string $AppName, SocialApiService $social)
     {
 	$this->appName = $AppName;
 	$this->social = $social;
@@ -42,8 +42,8 @@ class SocialUpdate extends \OC\BackgroundJob\QueuedJob {
 
     protected function run($arguments) {
 	$userId = $arguments['userId'];
-	$this->social->cronUpdate($userId);
+
+	// update contacts with first available social media profile
+	$this->social->updateAddressbooks('any', $userId);
     }
-
 }
-

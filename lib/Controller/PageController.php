@@ -31,7 +31,7 @@ use OCP\IConfig;
 use OCP\IRequest;
 use OCP\L10N\IFactory;
 use OCP\Util;
-use OCA\Contacts\Controller\SocialApiController;
+use OCA\Contacts\Service\SocialApiService;
 
 class PageController extends Controller {
 
@@ -46,7 +46,7 @@ class PageController extends Controller {
 	/** @var IFactory */
 	private $languageFactory;
 
-	/** @var SocialApiController */
+	/** @var SocialApiService */
 	private $socialApi;
 
 	public function __construct(string $appName,
@@ -54,7 +54,7 @@ class PageController extends Controller {
 								IConfig $config,
 								IInitialStateService $initialStateService,
 								IFactory $languageFactory,
-								SocialApiController $socialApi) {
+								SocialApiService $socialApi) {
 		parent::__construct($appName, $request);
 
 		$this->appName = $appName;

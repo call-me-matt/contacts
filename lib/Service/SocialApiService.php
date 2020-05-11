@@ -26,17 +26,87 @@ namespace OCA\Contacts\Service;
 use OCP\Contacts\IManager;
 use OCP\IAddressBook;
 
+use OCP\IConfig;
+use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\JSONResponse;
+
+use OCA\DAV\CardDAV\CardDavBackend;
+use OCA\DAV\CardDAV\ContactsManager;
+use OCP\IURLGenerator;
+use OCP\IL10N;
+
 class SocialApiService {
 
 	protected $appName;
 
 	/** @var IManager */
 	private  $manager;
+	/** @var IConfig */
+	private  $config;
+	/** @var IL10N  */
+	private $l10n;
+	/** @var IURLGenerator  */
+	private $urlGen;
+	/** @var CardDavBackend */
+	private  $davBackend;
 
-	public function __construct(string $AppName, IManager $manager) {
+	/**
+	 * This constant stores the supported social networks
+	 * It is an ordered list, so that first listed items will be checked first
+	 * Each item stores the avatar-url-formula as recipe and cleanup parameters
+	 *
+	 * @const {array} SOCIAL_CONNECTORS dictionary of supported social networks
+	 */
+	const SOCIAL_CONNECTORS = [
+		'instagram' 	=> [
+			'recipe' 	=> 'https://www.instagram.com/{socialId}/?__a=1',
+			'cleanups' 	=> ['basename', 'json' => 'graphql->user->profile_pic_url_hd'],
+		],
+		'facebook' 	=> [
+			'recipe' 	=> 'https://graph.facebook.com/{socialId}/picture?width=720',
+			'cleanups' 	=> ['basename'],
+		],
+		'tumblr' 	=> [
+			'recipe' 	=> 'https://api.tumblr.com/v2/blog/{socialId}/avatar/512',
+			'cleanups' 	=> ['regex' => '/(?:http[s]*\:\/\/)*(.*?)\.(?=[^\/]*\..{2,5})/i', 'group' => 1], // "subdomain"
+		],
+		/* untrusted
+		'twitter' 	=> [
+			'recipe' 	=> 'http://avatars.io/twitter/{socialId}',
+			'cleanups' 	=> ['basename'],
+		],
+		*/
+	];
+
+	public function __construct(string $AppName,
+					IManager $manager,
+					IConfig $config,
+					IL10N $l10n,
+					IURLGenerator $urlGen,
+					CardDavBackend $davBackend) {
 
 		$this->appName = $AppName;
 		$this->manager = $manager;
+		$this->config = $config;
+		$this->l10n = $l10n;
+		$this->urlGen = $urlGen;
+		$this->davBackend = $davBackend;
+	}
+
+
+	/**
+	 * @NoAdminRequired
+	 *
+	 * returns an array of supported social networks
+	 *
+	 * @returns {array} array of the supported social networks
+	 */
+	public function getSupportedNetworks() : array {
+		$isAdminEnabled = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
+		if ($isAdminEnabled !== 'yes') {
+			return array();
+		}
+		return array_keys(self::SOCIAL_CONNECTORS);
 	}
 
 
@@ -50,7 +120,7 @@ class SocialApiService {
 	 *
 	 * @returns {String} the photo start tag or null in case of errors
 	 */
-	public function getPhotoTag(float $version, array $header) : ?string {
+	protected function getPhotoTag(float $version, array $header) : ?string {
 
 		$type = null;
 
@@ -127,7 +197,7 @@ class SocialApiService {
 	 *
 	 * @returns {IAddressBook} the corresponding addressbook or null
 	 */
-	public function getAddressBook(string $addressbookId) : ?IAddressBook {
+	protected function getAddressBook(string $addressbookId) : ?IAddressBook {
 		$addressBook = null;
 		$addressBooks = $this->manager->getUserAddressBooks();
 		foreach($addressBooks as $ab) {
@@ -142,21 +212,36 @@ class SocialApiService {
 	/**
 	 * @NoAdminRequired
 	 *
+	 * Retrieves and initiates all addressbooks from a user
+	 *
+	 * @param {string} user the user to query
+	 * @param {IManager} the contact manager to load
+	 */
+	protected function registerAddressbooks($user, IManager $manager) {
+		$cm = new ContactsManager($this->davBackend, $this->l10n);
+		$cm->setupContactsProvider($manager, $user, $this->urlGen);
+		//FIXME: better would be: davBackend->getUsersOwnAddressBooks($principal); (no shared or system address books)
+		$this->manager = $manager;
+	}
+
+
+	/**
+	 * @NoAdminRequired
+	 *
 	 * generate download url for a social entry
 	 *
-	 * @param {array} socialRecipes all supported social networks with connection details
 	 * @param {array} socialEntries all social data from the contact
 	 * @param {String} network the choice which network to use (fallback: take first match)
 	 *
 	 * @returns {String} the url to the requested information or null in case of errors
 	 */
-	public function getSocialConnector(array $socialRecipes, array $socialEntries, string $network) : ?string {
+	protected function getSocialConnector(array $socialEntries, string $network) : ?string {
 
 		$connector = null;
-		$selection = $socialRecipes;
+		$selection = self::SOCIAL_CONNECTORS;
 		// check if dedicated network selected
-		if (isset($socialRecipes[$network])) {
-			$selection = array($network => $socialRecipes[$network]);
+		if (isset(self::SOCIAL_CONNECTORS[$network])) {
+			$selection = array($network => self::SOCIAL_CONNECTORS[$network]);
 		}
 
 		// check selected networks in order
@@ -181,14 +266,170 @@ class SocialApiService {
 					$connector = str_replace("{socialId}", $profileId, $socialRecipe['recipe']);
 					if (array_key_exists('json', $socialRecipe['cleanups'])) {
 						$connector = $this->getFromJson($connector, $socialRecipe['cleanups']['json']);
+						if (empty($connector)) {
+							$connector = 'invalid';
+						}
 					}
 					break;
 				}
 			}
-			if ($connector) {
+			if ($connector && $connector !== 'invalid') {
 				break;
 			}
 		}
 		return ($connector);
+	}
+
+
+	/**
+	 * @NoAdminRequired
+	 *
+	 * Retrieves social profile data for a contact and updates the entry
+	 *
+	 * @param {String} addressbookId the addressbook identifier
+	 * @param {String} contactId the contact identifier
+	 * @param {String} network the social network to use (if unkown: take first match)
+	 *
+	 * @returns {JSONResponse} an empty JSONResponse with respective http status code
+	 */
+	public function updateContact(string $addressbookId, string $contactId, string $network) : JSONResponse {
+
+		$url = null;
+
+		try {
+			// get corresponding addressbook
+			$addressBook = $this->getAddressBook($addressbookId);
+			if (is_null($addressBook)) {
+				return new JSONResponse([], Http::STATUS_BAD_REQUEST);
+			}
+
+			// search contact in that addressbook, get social data
+			$contact = $addressBook->search($contactId, ['UID'], ['types' => true])[0];
+			if (!isset($contact['X-SOCIALPROFILE'])) {
+				return new JSONResponse([], Http::STATUS_PRECONDITION_FAILED);
+			}
+			$socialprofiles = $contact['X-SOCIALPROFILE'];
+			// retrieve data
+			$url = $this->getSocialConnector($socialprofiles, $network);
+
+			if (empty($url)) {
+				return new JSONResponse([], Http::STATUS_NOT_IMPLEMENTED);
+			}
+			if ($url === 'invalid') {
+				return new JSONResponse([], Http::STATUS_BAD_REQUEST);
+			}
+
+			$opts = [
+				"http" => [
+					"method" => "GET",
+					"header" => "User-Agent: Nextcloud Contacts App"
+				]
+			];
+			$context = stream_context_create($opts);
+			$socialdata = file_get_contents($url, false, $context);
+
+			$photoTag = $this->getPhotoTag($contact['VERSION'], $http_response_header);
+
+			if (!$socialdata || $photoTag === null) {
+				return new JSONResponse([], Http::STATUS_NOT_FOUND);
+			}
+
+			// update contact
+			$changes = array();
+			$changes['URI'] = $contact['URI'];
+
+			if (!empty($contact['PHOTO'])) {
+				// overwriting without notice!
+			}
+			$changes['PHOTO'] = $photoTag . base64_encode($socialdata);
+
+			if (isset($contact['PHOTO']) && $changes['PHOTO'] === $contact['PHOTO']) {
+				return new JSONResponse([], Http::STATUS_NOT_MODIFIED);
+			}
+
+			$addressBook->createOrUpdate($changes, $addressbookId);
+		}
+		catch (Exception $e) {
+			return new JSONResponse([], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+		return new JSONResponse([], Http::STATUS_OK);
+	}
+
+
+	/**
+	 * @NoAdminRequired
+	 *
+	 * Updates social profile data for all contacts of an addressbook
+	 * // TODO: how to exclude certain contacts?
+	 *
+	 * @param {String} network the social network to use (fallback: take first match)
+	 * @param {String} user the address book owner
+	 *
+	 * @returns {JSONResponse} JSONResponse with the list of changed and failed contacts
+	 */
+	public function updateAddressbooks(string $network, string $user) : JSONResponse {
+
+		// double check!
+		$isAdminAllowed = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
+		if (!($isAdminAllowed === 'yes')) {
+			return new JSONResponse([], Http::STATUS_FORBIDDEN);
+		}
+		$isUserEnabled = $this->config->getUserValue($user, $this->appName, 'enableSocialSync', 'yes');
+		if ($isUserEnabled !== 'yes') {
+			return new JSONResponse([], Http::STATUS_FORBIDDEN);
+		}
+
+		$delay = 1;
+		$response = [
+			'updated' => array(),
+			'checked' => array(),
+			'failed' => array(),
+		];
+
+		// get corresponding addressbook
+		$this->registerAddressbooks($user, $this->manager);
+
+		$addressBooks = $this->manager->getUserAddressBooks();
+		// TODO: filter out system addr books
+		// TODO: keep only owned address books (not shared ones)
+
+		foreach ($addressBooks as $addressBook) {
+			if (is_null($addressBook)) {
+				break;
+			}
+
+			// get contacts in that addressbook
+			$contacts = $addressBook->search('', ['UID'], ['types' => true]);
+			// TODO: filter for contacts with social profiles
+			if (is_null($contacts)) {
+				break;
+			}
+
+			// update one contact after another
+			foreach ($contacts as $contact) {
+				// delay to prevent rate limiting issues
+				// FIXME: do we need to send an Http::STATUS_PROCESSING ?
+				sleep($delay);
+
+				try {
+					$r = $this->updateContact($addressBook->getURI(), $contact['UID'], $network);
+
+					if ($r->getStatus() === Http::STATUS_OK) {
+						array_push($response['updated'], $contact['FN']);
+					} elseif ($r->getStatus() === Http::STATUS_NOT_MODIFIED) {
+						array_push($response['checked'], $contact['FN']);
+					} else {
+						if (!isset($response['failed'][$r->getStatus()])) {
+							$response['failed'][$r->getStatus()] = array();
+						}
+						array_push($response['failed'][$r->getStatus()], $contact['FN']);
+					}
+				}
+				catch (Exception $e) {
+					array_push($response['failed'], $contact['FN']);
+				}
+			}
+		}
+		return new JSONResponse([$response], Http::STATUS_OK);
 	}
 }
