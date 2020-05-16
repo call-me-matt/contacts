@@ -83,8 +83,8 @@ class SocialUpdateRegistration extends \OC\BackgroundJob\TimedJob {
 
 		$this->userManager->callForSeenUsers(function (IUser $user) {
 
-			// check if user did not opt-out:
-			$isUserEnabled = $this->config->getUserValue($user->getUID(), $this->appName, 'enableSocialSync', 'yes');
+			// check that user opted-in:
+			$isUserEnabled = $this->config->getUserValue($user->getUID(), $this->appName, 'enableSocialSync', 'no');
 			if ($isUserEnabled === 'yes') {
 				$this->jobList->add(SocialUpdate::class, [
 					'userId' => $user->getUID()

@@ -259,7 +259,7 @@ class SocialApiService {
 		if (!($isAdminAllowed === 'yes')) {
 			return new JSONResponse([], Http::STATUS_FORBIDDEN);
 		}
-		$isUserEnabled = $this->config->getUserValue($user, $this->appName, 'enableSocialSync', 'yes');
+		$isUserEnabled = $this->config->getUserValue($user, $this->appName, 'enableSocialSync', 'no');
 		if ($isUserEnabled !== 'yes') {
 			return new JSONResponse([], Http::STATUS_FORBIDDEN);
 		}

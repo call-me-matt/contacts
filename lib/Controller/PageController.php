@@ -78,7 +78,7 @@ class PageController extends Controller {
 		$defaultProfile = $this->config->getAppValue($this->appName, 'defaultProfile', 'HOME');
 		$supportedNetworks = $this->socialApi->getSupportedNetworks();
 		$allowSocialSync = $this->config->getAppValue($this->appName, 'allowSocialSync', 'yes');
-		$enableSocialSync = $this->config->getUserValue($userId, $this->appName, 'enableSocialSync', 'yes');
+		$enableSocialSync = $this->config->getUserValue($userId, $this->appName, 'enableSocialSync', 'no');
 
 		$this->initialStateService->provideInitialState($this->appName, 'locales', $locales);
 		$this->initialStateService->provideInitialState($this->appName, 'defaultProfile', $defaultProfile);
