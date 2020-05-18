@@ -445,7 +445,7 @@ export default {
 		async downloadVcardPromise(vcardPromise) {
 			vcardPromise.then(response => {
 				const filename = moment().format('YYYY-MM-DD_HH-mm') + '_' + response.groupName + '.vcf'
-				download(response.data, filename, 'text/vcard')
+				download(response.data, filename, 'text/vcard; charset=utf-8')
 			})
 		},
 
