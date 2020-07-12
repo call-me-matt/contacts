@@ -23,21 +23,20 @@
 
 namespace OCA\Contacts\Controller;
 
+use OCA\Contacts\Service\SocialApiService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\TemplateResponse;
-use OCP\IInitialStateService;
 use OCP\IConfig;
+use OCP\IInitialStateService;
 use OCP\IRequest;
 use OCP\L10N\IFactory;
 use OCP\Util;
-use OCA\Contacts\Controller\SocialApiController;
 
 class PageController extends Controller {
-
 	protected $appName;
 
 	/** @var IConfig */
-	private  $config;
+	private $config;
 
 	/** @var IInitialStateService */
 	private $initialStateService;
@@ -45,23 +44,23 @@ class PageController extends Controller {
 	/** @var IFactory */
 	private $languageFactory;
 
-	/** @var SocialApiController */
-	private $socialApi;
+	/** @var SocialApiService */
+	private $socialApiService;
 
 	public function __construct(string $appName,
 								IRequest $request,
 								IConfig $config,
 								IInitialStateService $initialStateService,
 								IFactory $languageFactory,
-								SocialApiController $socialApi) {
+								SocialApiService $socialApiService) {
+
 		parent::__construct($appName, $request);
 
 		$this->appName = $appName;
 		$this->config = $config;
 		$this->initialStateService = $initialStateService;
 		$this->languageFactory = $languageFactory;
-
-		$this->socialApi = $socialApi;
+		$this->socialApiService = $socialApiService;
 	}
 
 	/**
@@ -73,7 +72,7 @@ class PageController extends Controller {
 	public function index(): TemplateResponse {
 		$locales = $this->languageFactory->findAvailableLocales();
 		$defaultProfile = $this->config->getAppValue($this->appName, 'defaultProfile', 'HOME');
-		$supportedNetworks = $this->socialApi->getSupportedNetworks();
+		$supportedNetworks = $this->socialApiService->getSupportedNetworks();
 
 		$this->initialStateService->provideInitialState($this->appName, 'locales', $locales);
 		$this->initialStateService->provideInitialState($this->appName, 'defaultProfile', $defaultProfile);

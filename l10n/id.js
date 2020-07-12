@@ -20,6 +20,7 @@ OC.L10N.register(
     "Disabled" : "Dinonaktifkan",
     "Copy link" : "Salin tautan",
     "Share with users or groups" : "Bagi dengan pengguna atau grup",
+    "No users or groups" : "Tidak ada pengguna atau grup",
     "can edit" : "dapat menyunting",
     "Address book name" : "Nama buku alamat",
     "First name" : "Nama depan",
@@ -58,6 +59,7 @@ OC.L10N.register(
     "Voice" : "Suara",
     "Social network" : "Media sosial",
     "None" : "Tidak ada",
-    "Unknown" : "Tidak diketahui"
+    "Unknown" : "Tidak diketahui",
+    "An error occurred" : "Terjadi kesalahan"
 },
 "nplurals=1; plural=0;");

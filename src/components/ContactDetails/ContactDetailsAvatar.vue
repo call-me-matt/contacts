@@ -85,7 +85,7 @@
 				<ActionButton
 					v-for="network in supportedSocial"
 					:key="network"
-					icon="icon-sync"
+					:icon="'icon-' + network.toLowerCase()"
 					@click="getSocialAvatar(network)">
 					{{ t('contacts', 'Get from ' + network) }}
 				</ActionButton>
@@ -146,12 +146,14 @@ export default {
 			return false
 		},
 		supportedSocial() {
-			const supported = this.contact.vCard.getAllProperties('x-socialprofile')
-				.filter(prop => supportedNetworks
-					.includes((prop.getParameter('type')).toString().toLowerCase()))
+			// get social networks set for the current contact
+			const available = this.contact.vCard.getAllProperties('x-socialprofile')
 				.map(a => a.jCal[1].type.toString().toLowerCase())
-
-			return Array.from(new Set(supported))
+			// get list of social networks that allow for avatar download
+			const supported = supportedNetworks.map(v => v.toLowerCase())
+			// return supported social networks which are set
+			return supported.filter(i => available.includes(i))
+				.map(j => this.capitalize(j))
 		},
 	},
 	mounted() {
@@ -235,7 +237,15 @@ export default {
 			this.$refs.uploadInput.value = ''
 			this.loading = false
 		},
-
+		/**
+		 * Return the word with (only) the first letter capitalized
+		 *
+		 * @param {string} word the word to handle
+		 * @returns {string} the word with the first letter capitalized
+		 */
+		capitalize(word) {
+			return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+		},
 		/**
 		 * Return the mimetype based on the first magix byte
 		 *
@@ -360,8 +370,8 @@ export default {
 
 				this.loading = true
 				try {
-					const response = await axios.get(generateUrl('/apps/contacts/api/v1/social/avatar/{network}/{id}/{uid}', {
-						network: network,
+					const response = await axios.put(generateUrl('/apps/contacts/api/v1/social/avatar/{network}/{id}/{uid}', {
+						network: network.toLowerCase(),
 						id: this.contact.addressbook.id,
 						uid: this.contact.uid,
 					}))

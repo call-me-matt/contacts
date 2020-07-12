@@ -35,10 +35,23 @@
 
 
 	<dependencies>
-		<nextcloud min-version="17" max-version="19" />
+		<nextcloud min-version="17" max-version="20" />
 	</dependencies>
 
 	<contactsmenu>
 		<provider>OCA\Contacts\ContactsMenu\Providers\DetailsProvider</provider>
 	</contactsmenu>
+
+	<navigations>
+		<navigation>
+			<name>Contacts</name>
+			<route>contacts.page.index</route>
+			<icon>app.svg</icon>
+			<order>4</order>
+		</navigation>
+	</navigations>
+
+	<settings>
+		<admin>OCA\Contacts\Settings\AdminSettings</admin>
+	</settings>
 </info>
