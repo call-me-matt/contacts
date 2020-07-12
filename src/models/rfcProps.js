@@ -20,8 +20,7 @@
  *
  */
 import { VCardTime } from 'ical.js'
-// import { loadState } from '@nextcloud/initial-state'
-import { loadState } from '../services/initialstate'
+import { loadState } from '@nextcloud/initial-state'
 
 import ActionCopyNtoFN from '../components/Actions/ActionCopyNtoFN'
 import ActionToggleYear from '../components/Actions/ActionToggleYear'
@@ -36,6 +35,9 @@ const locales = localesState
 		name,
 	}))
 	: []
+
+console.debug('Initial state loaded', 'defaultProfileState', defaultProfileState)
+console.debug('Initial state loaded', 'localesState', localesState)
 
 const properties = {
 	nickname: {
@@ -176,6 +178,10 @@ const properties = {
 			{ id: 'TELEGRAM', name: 'Telegram' },
 			{ id: 'XMPP', name: 'XMPP' },
 			{ id: 'SIP', name: 'SIP' },
+			{ id: 'QQ', name: 'QQ' },
+			{ id: 'WECHAT', name: 'WeChat' },
+			{ id: 'LINE', name: 'Line' },
+			{ id: 'KAKAOTALK', name: 'KakaoTalk' },
 		],
 	},
 	tel: {

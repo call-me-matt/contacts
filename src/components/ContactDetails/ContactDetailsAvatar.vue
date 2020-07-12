@@ -3,6 +3,7 @@
   -
   - @author Team Popcorn <teampopcornberlin@gmail.com>
   - @author John Molakvoæ <skjnldsv@protonmail.com>
+  - @author Matthias Heinisch <nextcloud@matthiasheinisch.de>
   -
   - @license GNU AGPL version 3 or any later version
   -
@@ -47,6 +48,7 @@
 
 			<Modal v-if="maximizeAvatar"
 				ref="modal"
+				:clear-view-delay="-1"
 				class="contact-header-modal"
 				size="large"
 				:title="contact.displayName"
@@ -73,16 +75,19 @@
 			</Modal>
 
 			<!-- out of the avatar__options because of the overflow hidden -->
-			<Actions :open="opened" class="contact-avatar-options__popovermenu">
-				<ActionButton v-if="!isReadOnly" icon="icon-upload" @click="selectFileInput">
+			<Actions v-if="!isReadOnly" :open="opened" class="contact-avatar-options__popovermenu">
+				<ActionButton icon="icon-upload" @click="selectFileInput">
 					{{ t('contacts', 'Upload a new picture') }}
 				</ActionButton>
-				// TODO: find a better icon
-				<ActionButton v-if="!isReadOnly" icon="icon-upload" @click="selectWebInput">
-					{{ t('contacts', 'Choose from web') }}
-				</ActionButton>
-				<ActionButton v-if="!isReadOnly" icon="icon-picture" @click="selectFilePicker">
+				<ActionButton icon="icon-picture" @click="selectFilePicker">
 					{{ t('contacts', 'Choose from files') }}
+				</ActionButton>
+				<ActionButton
+					v-for="network in supportedSocial"
+					:key="network"
+					icon="icon-sync"
+					@click="getSocialAvatar(network)">
+					{{ t('contacts', 'Get from ' + network) }}
 				</ActionButton>
 			</Actions>
 		</div>
@@ -91,21 +96,29 @@
 
 <script>
 import debounce from 'debounce'
-import { ActionLink, ActionButton } from '@nextcloud/vue'
+import Actions from '@nextcloud/vue/dist/Components/Actions'
+import ActionLink from '@nextcloud/vue/dist/Components/ActionLink'
+import ActionButton from '@nextcloud/vue/dist/Components/ActionButton'
+import Modal from '@nextcloud/vue/dist/Components/Modal'
 
 import { getFilePickerBuilder } from '@nextcloud/dialogs'
-import { generateRemoteUrl } from '@nextcloud/router'
+import { generateUrl, generateRemoteUrl } from '@nextcloud/router'
 import { getCurrentUser } from '@nextcloud/auth'
+import { loadState } from '@nextcloud/initial-state'
 import sanitizeSVG from '@mattkrick/sanitize-svg'
 
-const axios = () => import('axios')
+import axios from '@nextcloud/axios'
+
+const supportedNetworks = loadState('contacts', 'supportedNetworks')
 
 export default {
 	name: 'ContactDetailsAvatar',
 
 	components: {
+		Actions,
 		ActionLink,
 		ActionButton,
+		Modal,
 	},
 
 	props: {
@@ -131,6 +144,14 @@ export default {
 				return this.contact.addressbook.readOnly
 			}
 			return false
+		},
+		supportedSocial() {
+			const supported = this.contact.vCard.getAllProperties('x-socialprofile')
+				.filter(prop => supportedNetworks
+					.includes((prop.getParameter('type')).toString().toLowerCase()))
+				.map(a => a.jCal[1].type.toString().toLowerCase())
+
+			return Array.from(new Set(supported))
 		},
 	},
 	mounted() {
@@ -313,8 +334,7 @@ export default {
 				if (file) {
 					this.loading = true
 					try {
-						const { get } = await axios()
-						const response = await get(`${this.root}${file}`, {
+						const response = await axios.get(`${this.root}${file}`, {
 							responseType: 'arraybuffer',
 						})
 						const type = response.headers['content-type']
@@ -330,31 +350,44 @@ export default {
 		},
 
 		/**
-		 * WebURL handlers
+		 * Downloads the Avatar from social media
+		 *
+		 * @param {String} network the social network to use (or 'any' for first match)
 		 */
-		async selectWebInput() {
+		async getSocialAvatar(network) {
+
 			if (!this.loading) {
 
-				// FIXME: replace with input field
-				const imageUrl = 'https://github.githubassets.com/images/icons/emoji/unicode/2764.png'
+				this.loading = true
+				try {
+					const response = await axios.get(generateUrl('/apps/contacts/api/v1/social/avatar/{network}/{id}/{uid}', {
+						network: network,
+						id: this.contact.addressbook.id,
+						uid: this.contact.uid,
+					}))
+					if (response.status !== 200) {
+						throw new URIError('Download of social profile avatar failed')
+					}
 
-				if (imageUrl) {
-					this.loading = true
-					try {
-						const { get } = await axios()
-						const response = await get(`${imageUrl}`, {
-							responseType: 'arraybuffer',
-						})
-						const type = response.headers['content-type']
-						const data = Buffer.from(response.data, 'binary').toString('base64')
-						this.setPhoto(data, type)
-					} catch (error) {
-						OC.Notification.showTemporary(t('contacts', 'Error while processing the picture.'))
-						console.error(error)
-						this.loading = false
+					// Fetch newly updated contact
+					await this.$store.dispatch('fetchFullContact', { contact: this.contact, forceReFetch: true })
+
+					// Update local clone
+					const contact = this.$store.getters.getContact(this.contact.key)
+					await this.$emit('updateLocalContact', contact)
+
+					// Notify user
+					OC.Notification.showTemporary(t('contacts', 'Avatar downloaded from social network'))
+				} catch (error) {
+					if (error.response.status === 304) {
+						OC.Notification.showTemporary(t('contacts', 'Avatar already up to date'))
+					} else {
+						OC.Notification.showTemporary(t('contacts', 'Avatar download failed'))
+						console.debug(error)
 					}
 				}
 			}
+			this.loading = false
 		},
 
 		/**

@@ -1,3 +1,21 @@
+## 3.3.0 – 2020-04-14
+
+[Full Changelog](https://github.com/nextcloud/contacts/compare/v3.2.0...v3.3.0)
+
+### Enhancements
+- Add ability to clone contact
+  [\#1462](https://github.com/nextcloud/contacts/pull/1462) ([skjnldsv](https://github.com/skjnldsv))
+
+### Fixed
+- Fix no sharing menu position
+  [\#1500](https://github.com/nextcloud/contacts/pull/1500) ([skjnldsv](https://github.com/skjnldsv))
+- Support multiple type declaration
+  [\#942](https://github.com/nextcloud/contacts/issues/942) ([skjnldsv](https://github.com/skjnldsv))
+
+### Security fixed
+- Properly sanitize avatars in upload
+  [\#1514](https://github.com/nextcloud/contacts/pull/1514) ([skjnldsv](https://github.com/skjnldsv))
+
 ## 3.2.0 – 2020-02-29
 ### Fixed
 - Fix first contact sync (Contact saving hangs and protocol says uid already exists)
@@ -140,7 +158,7 @@
   [#991](https://github.com/nextcloud/contacts/pull/991)
 - Use displayname as file name when downloading a contact
   [#1022](https://github.com/nextcloud/contacts/pull/1022)
-- Show vcard as qrcode
+- Show vCard as qrcode
   [#1017](https://github.com/nextcloud/contacts/pull/1017)
 - Use virtual scroller for big contacts list display performances
   [#1018](https://github.com/nextcloud/contacts/pull/1018)
